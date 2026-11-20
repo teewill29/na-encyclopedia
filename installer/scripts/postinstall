@@ -1,0 +1,4 @@
+#!/bin/bash
+# Tell macOS to rescan Audio Units so hosts see the new plugin straight away.
+killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
+exit 0

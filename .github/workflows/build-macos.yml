@@ -13,6 +13,7 @@ env:
   AU_TYPE: aufx
   AU_SUBTYPE: NE04
   AU_MANUFACTURER: Tywl
+  BUNDLE_ID: com.novelteeaudio.naencyclopedia.compression
 
 jobs:
   build:
@@ -58,13 +59,26 @@ jobs:
           codesign --verify --deep --strict --verbose=2 "$AU"
           codesign --verify --deep --strict --verbose=2 "$VST3"
 
-      - name: Install AU on runner and validate with auval
+      - name: Build installer package
         run: |
-          COMPONENTS="$HOME/Library/Audio/Plug-Ins/Components"
-          mkdir -p "$COMPONENTS"
-          cp -R "$AU" "$COMPONENTS/"
+          VERSION=$(sed -nE 's/^ *VERSION +([0-9.]+).*/\1/p' volumes/04-compression/CMakeLists.txt | head -1)
+          PKG="dist/$PLUGIN_NAME $VERSION.pkg"
+          installer/build-pkg.sh "$AU" "$VST3" "$VERSION" "$BUNDLE_ID" "$PLUGIN_NAME" "$PKG"
+          pkgutil --check-signature "$PKG" || true   # unsigned until Milestone 8
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
 
-          # Make macOS notice the new component.
+      - name: Install the package on the runner (like a user would)
+        run: |
+          installer -pkg "$PKG" -target CurrentUserHomeDirectory -verboseR
+          test -d "$HOME/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component" \
+            || { echo "::error::Installer did not put the AU in ~/Library/Audio/Plug-Ins/Components"; exit 1; }
+          test -d "$HOME/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3" \
+            || { echo "::error::Installer did not put the VST3 in ~/Library/Audio/Plug-Ins/VST3"; exit 1; }
+          codesign --verify --deep --strict "$HOME/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component"
+          echo "Installer placed both plugins correctly."
+
+      - name: Validate the installed AU with auval
+        run: |
           killall -9 AudioComponentRegistrar 2>/dev/null || true
 
           for i in $(seq 1 20); do
@@ -76,7 +90,7 @@ jobs:
             sleep 3
           done
 
-          auval -a | grep "$AU_SUBTYPE" || { echo "Component never registered with macOS"; exit 1; }
+          auval -a | grep "$AU_SUBTYPE" || { echo "::error::Component never registered with macOS"; exit 1; }
 
           set +e
           auval -strict -v "$AU_TYPE" "$AU_SUBTYPE" "$AU_MANUFACTURER" | tee auval.log
@@ -89,17 +103,23 @@ jobs:
           fi
           echo "auval validation passed."
 
-      - name: Zip bundles
+      - name: Zip raw bundles (for debugging)
         run: |
-          mkdir -p dist
-          ditto -c -k --keepParent "$AU"   "dist/$PLUGIN_NAME AU.zip"
-          ditto -c -k --keepParent "$VST3" "dist/$PLUGIN_NAME VST3.zip"
-          cp auval.log dist/
-          ls -la dist
+          mkdir -p raw
+          ditto -c -k --keepParent "$AU"   "raw/$PLUGIN_NAME AU.zip"
+          ditto -c -k --keepParent "$VST3" "raw/$PLUGIN_NAME VST3.zip"
+          cp auval.log raw/
 
-      - name: Upload artifact
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: NA-Encyclopedia-IV-Compression-macOS
-          path: dist/*
+          name: NA-Encyclopedia-IV-Compression-Installer
+          path: ${{ env.PKG }}
+          if-no-files-found: error
+
+      - name: Upload raw bundles and auval log
+        uses: actions/upload-artifact@v4
+        with:
+          name: raw-bundles-and-logs
+          path: raw/*
           if-no-files-found: error
