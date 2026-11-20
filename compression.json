@@ -1,0 +1,591 @@
+{
+  "schemaVersion": 1,
+  "series": "NA Encyclopedia",
+  "brand": "Noveltee Audio",
+  "volume": 4,
+  "volumeNumeral": "IV",
+  "topic": "Compression",
+  "edition": "First Edition",
+  "status": "DRAFT: every number and line here is a starting point. Verify against 2-3 sources and an engineer review before release.",
+
+  "chapters": [
+    {
+      "id": "goal",
+      "numeral": "I",
+      "title": "The Goal",
+      "intro": "Compression turns down the loud parts of a sound so the whole thing sits more evenly. How much, and how fast, decides whether it sounds punchy, smooth or squashed.",
+      "doThis": "Play the busiest section of the track for about ten seconds. The Primer will check whether this track needs compression at all.",
+      "listenFor": "How much the level jumps around. Notice which parts feel too loud and which get lost."
+    },
+    {
+      "id": "ratioThreshold",
+      "numeral": "II",
+      "title": "Ratio & Threshold",
+      "subtitle": "How hard, and how often",
+      "intro": "Threshold is the line where the compressor starts working. Ratio is how hard it pushes back once the sound crosses that line. Your goal already set the ratio to {ratio.start}:1, so you only need to ride the threshold.",
+      "doThis": "Play the loudest part of the track. Slowly lower the threshold until the meter sits in the target zone on the loud parts.",
+      "listenFor": "{goal.listenFor.ratioThreshold}",
+      "tryThis": "Flip between 2:1 and 8:1 for a few seconds to hear what ratio does, then come back to {ratio.start}:1."
+    },
+    {
+      "id": "attack",
+      "numeral": "III",
+      "title": "Attack",
+      "intro": "Attack is how fast the compressor grabs a sound once it gets loud. Slow attack lets the first hit of each note through. Fast attack catches it.",
+      "doThisFromFast": "Start at {attack.start} ms. While the track plays, slowly turn Attack up. Stop when the start of each note pokes through the way your goal wants.",
+      "doThisFromSlow": "Start at {attack.start} ms. While the track plays, slowly turn Attack down. Stop when the loud starts are under control.",
+      "listenFor": "{goal.listenFor.attack}"
+    },
+    {
+      "id": "release",
+      "numeral": "IV",
+      "title": "Release",
+      "intro": "Release is how fast the compressor lets go after the sound gets quieter. It should recover in time with the music, ready for the next note.",
+      "doThis": "Start at {release.start} ms. Slowly turn Release down until the meter drops back toward zero before the next note or phrase hits.",
+      "listenFor": "{goal.listenFor.release}"
+    },
+    {
+      "id": "level",
+      "numeral": "V",
+      "title": "Level & Compare",
+      "intro": "Compression makes things quieter, and quieter always sounds worse. Match the level before you judge it.",
+      "doThis": "Turn Makeup Gain until the output matches the original. Then hold Compare to flip between before and after at the same volume.",
+      "listenFor": "Whether the after version does what you picked in Chapter I. If you can't tell them apart, that's fine for gentle goals."
+    },
+    {
+      "id": "blend",
+      "numeral": "VI",
+      "title": "Blend",
+      "optional": true,
+      "intro": "Parallel compression mixes a heavily squashed copy under the original. You keep the natural hits and add energy underneath.",
+      "doThis": "Start Mix at 0%. Slowly bring it up while the drums play.",
+      "listenFor": "{goal.listenFor.blend}"
+    }
+  ],
+
+  "messages": {
+    "listening": "Keep playing. The Primer needs a few seconds of the loud part to take a reading.",
+    "silence": "Nothing is coming in. Press play on a section where this track is playing.",
+    "needCheck": {
+      "needed": "This track jumps around enough to benefit. Let's set it up.",
+      "notNeeded": "This track is already pretty even. Light settings or no compression at all may sound best. You can still continue."
+    },
+    "ratioThreshold": {
+      "low": "Not catching enough yet. Lower the threshold until the meter sits in the zone on the loud parts.",
+      "high": "That's more squeeze than this goal needs. Raise the threshold a little.",
+      "onTarget": "That's the right amount of squeeze. Turn to Chapter III."
+    },
+    "attack": {
+      "low": "Too fast. The front of each note is getting flattened. Turn Attack up.",
+      "high": "Too slow. The loud starts are slipping through untouched. Bring Attack down.",
+      "onTarget": "Right on target. Lock it in and turn to Chapter IV."
+    },
+    "release": {
+      "tooSlow": "Too slow. The compressor never lets go before the next note. Shorten the release.",
+      "tooFast": "Too fast. Release this short can make the sound flutter or distort. Lengthen it.",
+      "onTarget": "The compressor is recovering in time with the music. Turn to Chapter V."
+    },
+    "level": {
+      "high": "Louder than the original, which makes it sound better than it is. Turn Makeup down.",
+      "low": "Quieter than the original. Add Makeup Gain until they match.",
+      "onTarget": "Levels match. Now hold Compare and trust your ears."
+    },
+    "blend": {
+      "low": "Barely any smash in there yet. Bring Mix up.",
+      "high": "The smash is taking over. Pull Mix back until the natural hits lead again.",
+      "onTarget": "That's the sweet spot: bigger and louder, still natural."
+    }
+  },
+
+  "instruments": [
+    {
+      "id": "leadVocal",
+      "name": "Lead Vocal",
+      "needCheckMinRangeDb": 6,
+      "goals": [
+        {
+          "id": "punch",
+          "name": "More Punch",
+          "tagline": "Words hit harder and cut through",
+          "ratio": { "start": 4, "min": 3, "max": 5 },
+          "attackMs": { "min": 15, "max": 30, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 50, "max": 100, "start": 250 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 70, "max": 90 },
+          "residualGrMaxDb": 1.0,
+          "listenFor": {
+            "ratioThreshold": "Loud lines coming down a little so they stop jumping over the quiet ones.",
+            "attack": "T's, P's and K's popping forward while the body of each word stays controlled.",
+            "release": "The vocal relaxing back to full level between phrases, not hanging low."
+          }
+        },
+        {
+          "id": "smoothEven",
+          "name": "Smooth & Even",
+          "tagline": "Loud and quiet lines land closer together",
+          "ratio": { "start": 3, "min": 2, "max": 4 },
+          "attackMs": { "min": 3, "max": 10, "start": 30, "approach": "fromSlow" },
+          "releaseMs": { "min": 80, "max": 150, "start": 300 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 50, "max": 70 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "The big notes settling down to sit near the softer ones.",
+            "attack": "Loud syllables no longer jumping out. Too fast and the vocal starts to sound dull.",
+            "release": "A steady level line to line with no audible pumping."
+          }
+        },
+        {
+          "id": "upfrontSquashed",
+          "name": "Upfront & Squashed",
+          "tagline": "Pinned in your face, modern rock style",
+          "ratio": { "start": 6, "min": 6, "max": 8 },
+          "attackMs": { "min": 1, "max": 5, "start": 20, "approach": "fromSlow" },
+          "releaseMs": { "min": 40, "max": 80, "start": 200 },
+          "grDb": { "min": 8, "max": 12 },
+          "frontsKeptPct": { "min": 25, "max": 50 },
+          "residualGrMaxDb": 3.0,
+          "listenFor": {
+            "ratioThreshold": "The vocal flattening into one solid level. This goal is supposed to sound heavy.",
+            "attack": "Every word pinned at the same level. Back off if the vocal turns lispy or crunchy.",
+            "release": "Dense and in your face. Breaths getting loud means release is too fast."
+          }
+        }
+      ]
+    },
+    {
+      "id": "backingVocals",
+      "name": "Backing Vocals",
+      "needCheckMinRangeDb": 6,
+      "goals": [
+        {
+          "id": "tuck",
+          "name": "Tuck Behind the Lead",
+          "tagline": "Steady parts that support without competing",
+          "ratio": { "start": 4, "min": 3, "max": 5 },
+          "attackMs": { "min": 5, "max": 10, "start": 30, "approach": "fromSlow" },
+          "releaseMs": { "min": 80, "max": 120, "start": 250 },
+          "grDb": { "min": 4, "max": 8 },
+          "frontsKeptPct": { "min": 45, "max": 70 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "The backing parts holding one steady level under the lead.",
+            "attack": "The backing parts losing their sharp edges so they sit behind the lead.",
+            "release": "A steady bed with no swells between lines."
+          }
+        },
+        {
+          "id": "blendBus",
+          "name": "Blend Together",
+          "tagline": "Several voices gel into one group (use on the vocal bus)",
+          "ratio": { "start": 2, "min": 1.5, "max": 3 },
+          "attackMs": { "min": 10, "max": 30, "start": 3, "approach": "fromFast" },
+          "releaseMs": { "min": 100, "max": 200, "start": 400 },
+          "grDb": { "min": 2, "max": 3 },
+          "frontsKeptPct": { "min": 75, "max": 95 },
+          "residualGrMaxDb": 1.5,
+          "listenFor": {
+            "ratioThreshold": "Just a touch of movement on the meter. Glue is gentle.",
+            "attack": "The voices starting to sound like one group instead of separate singers.",
+            "release": "The group breathing with the song's tempo."
+          }
+        }
+      ]
+    },
+    {
+      "id": "acousticGuitar",
+      "name": "Acoustic Guitar",
+      "needCheckMinRangeDb": 5,
+      "goals": [
+        {
+          "id": "evenStrum",
+          "name": "Even Strumming",
+          "tagline": "Big strums and soft strums sit together",
+          "ratio": { "start": 3, "min": 2, "max": 4 },
+          "attackMs": { "min": 10, "max": 20, "start": 40, "approach": "fromSlow" },
+          "releaseMs": { "min": 80, "max": 150, "start": 300 },
+          "grDb": { "min": 3, "max": 5 },
+          "frontsKeptPct": { "min": 55, "max": 75 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "The hardest strums coming down to meet the rest.",
+            "attack": "Loud strums no longer poking out while the strings keep their shimmer.",
+            "release": "A steady strum pattern with no dips after big hits."
+          }
+        },
+        {
+          "id": "pickSnap",
+          "name": "More Pick & Snap",
+          "tagline": "Crisper, more percussive playing",
+          "ratio": { "start": 4, "min": 3, "max": 5 },
+          "attackMs": { "min": 25, "max": 40, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 50, "max": 80, "start": 200 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 75, "max": 95 },
+          "residualGrMaxDb": 1.0,
+          "listenFor": {
+            "ratioThreshold": "The body of the guitar tightening up a little.",
+            "attack": "The pick hitting the strings getting crisper and more forward.",
+            "release": "The body of the guitar coming back up quickly between strums."
+          }
+        },
+        {
+          "id": "natural",
+          "name": "Keep It Natural",
+          "tagline": "Barely there, just smooths the peaks",
+          "ratio": { "start": 2, "min": 1.5, "max": 2.5 },
+          "attackMs": { "min": 20, "max": 30, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 120, "max": 180, "start": 400 },
+          "grDb": { "min": 1, "max": 3 },
+          "frontsKeptPct": { "min": 85, "max": 100 },
+          "residualGrMaxDb": 0.5,
+          "listenFor": {
+            "ratioThreshold": "The meter only flickering on the biggest moments.",
+            "attack": "Almost nothing. If you can clearly hear it working, it's too much.",
+            "release": "The guitar sounding like the raw take, just a little more consistent."
+          }
+        }
+      ]
+    },
+    {
+      "id": "electricClean",
+      "name": "Electric Guitar (Clean)",
+      "needCheckMinRangeDb": 5,
+      "goals": [
+        {
+          "id": "evenSustained",
+          "name": "Even & Sustained",
+          "tagline": "Notes ring longer and more evenly",
+          "ratio": { "start": 4, "min": 3, "max": 6 },
+          "attackMs": { "min": 5, "max": 15, "start": 40, "approach": "fromSlow" },
+          "releaseMs": { "min": 100, "max": 200, "start": 400 },
+          "grDb": { "min": 4, "max": 8 },
+          "frontsKeptPct": { "min": 40, "max": 65 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "Picked notes and ringing notes landing at a similar level.",
+            "attack": "Notes ringing longer and more evenly. Too fast and the picking turns mushy.",
+            "release": "Sustain holding up without the tone swelling or breathing."
+          }
+        },
+        {
+          "id": "pickAttack",
+          "name": "More Pick Attack",
+          "tagline": "Snappier, more defined notes",
+          "ratio": { "start": 3, "min": 2, "max": 4 },
+          "attackMs": { "min": 20, "max": 40, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 50, "max": 100, "start": 250 },
+          "grDb": { "min": 3, "max": 5 },
+          "frontsKeptPct": { "min": 75, "max": 95 },
+          "residualGrMaxDb": 1.0,
+          "listenFor": {
+            "ratioThreshold": "The ringing part of each note tightening slightly.",
+            "attack": "Each pick stroke getting snappier and more defined.",
+            "release": "The note body coming back up between pick strokes."
+          }
+        }
+      ]
+    },
+    {
+      "id": "electricDistorted",
+      "name": "Electric Guitar (Distorted)",
+      "needCheckMinRangeDb": 3,
+      "lesson": "Distortion already squashes the sound, so heavy guitars usually need little or no compression. This goal teaches you to hear when to leave it alone.",
+      "goals": [
+        {
+          "id": "lightTouch",
+          "name": "Light Touch",
+          "tagline": "A tiny bit of control, nothing more",
+          "ratio": { "start": 2, "min": 1.5, "max": 2.5 },
+          "attackMs": { "min": 10, "max": 30, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 80, "max": 120, "start": 300 },
+          "grDb": { "min": 1, "max": 2 },
+          "frontsKeptPct": { "min": 80, "max": 100 },
+          "residualGrMaxDb": 0.5,
+          "listenFor": {
+            "ratioThreshold": "Barely any meter movement. That's correct here.",
+            "attack": "Very little change. Distortion already evens things out.",
+            "release": "No pumping. If you hear the guitar breathing, back everything off."
+          }
+        }
+      ]
+    },
+    {
+      "id": "bass",
+      "name": "Bass",
+      "needCheckMinRangeDb": 4,
+      "goals": [
+        {
+          "id": "evenNotes",
+          "name": "Even Every Note",
+          "tagline": "Every note lands with the same weight",
+          "ratio": { "start": 4, "min": 3, "max": 5 },
+          "attackMs": { "min": 10, "max": 30, "start": 3, "approach": "fromFast" },
+          "releaseMs": { "min": 80, "max": 150, "start": 300 },
+          "grDb": { "min": 4, "max": 6 },
+          "frontsKeptPct": { "min": 60, "max": 80 },
+          "residualGrMaxDb": 1.5,
+          "listenFor": {
+            "ratioThreshold": "Loud notes coming down so none of them jump out.",
+            "attack": "Every note landing at the same weight, low strings and high strings alike.",
+            "release": "Notes holding steady. Too fast and the low end starts to rattle or distort."
+          }
+        },
+        {
+          "id": "punchy",
+          "name": "Punchy & Defined",
+          "tagline": "A clear click at the start of each note",
+          "ratio": { "start": 4, "min": 3, "max": 5 },
+          "attackMs": { "min": 20, "max": 40, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 50, "max": 80, "start": 250 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 70, "max": 90 },
+          "residualGrMaxDb": 1.0,
+          "listenFor": {
+            "ratioThreshold": "The sustain of each note tightening up.",
+            "attack": "The pluck or pick getting a clear click at the start of each note.",
+            "release": "The bass bouncing back up in time with the groove."
+          }
+        },
+        {
+          "id": "thickLocked",
+          "name": "Thick & Locked",
+          "tagline": "A solid, unmoving wall of low end",
+          "ratio": { "start": 8, "min": 6, "max": 10 },
+          "attackMs": { "min": 3, "max": 10, "start": 40, "approach": "fromSlow" },
+          "releaseMs": { "min": 60, "max": 100, "start": 250 },
+          "grDb": { "min": 6, "max": 10 },
+          "frontsKeptPct": { "min": 35, "max": 60 },
+          "residualGrMaxDb": 2.5,
+          "listenFor": {
+            "ratioThreshold": "The bass flattening into one steady level.",
+            "attack": "A solid, unmoving wall of low end. Back off if notes lose definition.",
+            "release": "Thick and steady. Distortion on low notes means release is too fast."
+          }
+        }
+      ]
+    },
+    {
+      "id": "kick",
+      "name": "Kick",
+      "needCheckMinRangeDb": null,
+      "goals": [
+        {
+          "id": "punch",
+          "name": "More Punch",
+          "tagline": "A sharper, louder beater click",
+          "ratio": { "start": 4, "min": 3, "max": 6 },
+          "attackMs": { "min": 20, "max": 40, "start": 1, "approach": "fromFast" },
+          "releaseMs": { "min": 40, "max": 80, "start": 200 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 70, "max": 90 },
+          "residualGrMaxDb": 0.5,
+          "listenFor": {
+            "ratioThreshold": "The boom after the hit getting slightly shorter.",
+            "attack": "The beater click getting louder and sharper.",
+            "release": "The compressor fully letting go before the next kick lands."
+          }
+        },
+        {
+          "id": "body",
+          "name": "More Body",
+          "tagline": "A bigger, rounder boom",
+          "ratio": { "start": 4, "min": 3, "max": 6 },
+          "attackMs": { "min": 1, "max": 5, "start": 30, "approach": "fromSlow" },
+          "releaseMs": { "min": 100, "max": 200, "start": 400 },
+          "grDb": { "min": 4, "max": 6 },
+          "frontsKeptPct": { "min": 40, "max": 65 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "The hit and the boom moving closer together in level.",
+            "attack": "The click softening while the boom gets bigger after makeup gain.",
+            "release": "The tail of the kick growing longer and rounder."
+          }
+        }
+      ]
+    },
+    {
+      "id": "snare",
+      "name": "Snare",
+      "needCheckMinRangeDb": null,
+      "goals": [
+        {
+          "id": "crack",
+          "name": "More Crack",
+          "tagline": "A sharper stick hit that cuts through",
+          "ratio": { "start": 4, "min": 3, "max": 6 },
+          "attackMs": { "min": 15, "max": 30, "start": 1, "approach": "fromFast" },
+          "releaseMs": { "min": 50, "max": 80, "start": 200 },
+          "grDb": { "min": 3, "max": 6 },
+          "frontsKeptPct": { "min": 70, "max": 90 },
+          "residualGrMaxDb": 0.5,
+          "listenFor": {
+            "ratioThreshold": "The ring after the hit tightening up.",
+            "attack": "The stick hit getting sharper and cutting through more.",
+            "release": "The snare resetting fully between hits."
+          }
+        },
+        {
+          "id": "fatter",
+          "name": "Fatter",
+          "tagline": "More body and ring, less crack",
+          "ratio": { "start": 5, "min": 4, "max": 6 },
+          "attackMs": { "min": 1, "max": 5, "start": 30, "approach": "fromSlow" },
+          "releaseMs": { "min": 100, "max": 150, "start": 350 },
+          "grDb": { "min": 5, "max": 8 },
+          "frontsKeptPct": { "min": 40, "max": 65 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "The hit coming down toward the body of the drum.",
+            "attack": "The crack softening and the body of the drum filling in.",
+            "release": "The ring and the snare wires coming forward."
+          }
+        }
+      ]
+    },
+    {
+      "id": "drumBus",
+      "name": "Drum Bus",
+      "needCheckMinRangeDb": null,
+      "goals": [
+        {
+          "id": "glue",
+          "name": "Glue",
+          "tagline": "The kit sounds like one instrument",
+          "ratio": { "start": 3, "min": 2, "max": 4 },
+          "attackMs": { "min": 10, "max": 30, "start": 3, "approach": "fromFast" },
+          "releaseMs": { "min": 80, "max": 150, "start": 300 },
+          "grDb": { "min": 2, "max": 4 },
+          "frontsKeptPct": { "min": 70, "max": 90 },
+          "residualGrMaxDb": 1.5,
+          "listenFor": {
+            "ratioThreshold": "The meter moving a little on the biggest hits.",
+            "attack": "The kit sounding like one instrument instead of separate drums.",
+            "release": "The kit breathing in time with the groove. Off-time pumping means adjust release."
+          }
+        },
+        {
+          "id": "parallelSmash",
+          "name": "Parallel Smash",
+          "tagline": "Crush a copy and blend it in for energy",
+          "extraChapters": ["blend"],
+          "ratio": { "start": 10, "min": 8, "max": 20 },
+          "attackMs": { "min": 1, "max": 3, "start": 20, "approach": "fromSlow" },
+          "releaseMs": { "min": 50, "max": 100, "start": 250 },
+          "grDb": { "min": 10, "max": 20 },
+          "frontsKeptPct": { "min": 10, "max": 40 },
+          "residualGrMaxDb": 6.0,
+          "mixPct": { "min": 20, "max": 40, "start": 0 },
+          "note": "Chapters II to IV run with Mix forced to 100% so the user hears the smashed copy alone. Chapter VI (Blend) brings Mix down to taste.",
+          "listenFor": {
+            "ratioThreshold": "Lots of meter movement. Smashing is the point.",
+            "attack": "Slam it. On its own the smashed copy should sound wrecked, and that's expected.",
+            "release": "Room and cymbals swelling up between hits.",
+            "blend": "Bring the smash in until the kit feels bigger and more energetic, then pull back a touch."
+          }
+        }
+      ]
+    },
+    {
+      "id": "pianoKeys",
+      "name": "Piano / Keys",
+      "needCheckMinRangeDb": 6,
+      "goals": [
+        {
+          "id": "evenOut",
+          "name": "Even It Out",
+          "tagline": "Loud chords stop jumping over soft ones",
+          "ratio": { "start": 2.5, "min": 2, "max": 3 },
+          "attackMs": { "min": 10, "max": 30, "start": 3, "approach": "fromFast" },
+          "releaseMs": { "min": 100, "max": 200, "start": 400 },
+          "grDb": { "min": 2, "max": 4 },
+          "frontsKeptPct": { "min": 65, "max": 85 },
+          "residualGrMaxDb": 1.5,
+          "listenFor": {
+            "ratioThreshold": "The loudest chords settling toward the rest.",
+            "attack": "Loud chords no longer jumping out over soft ones.",
+            "release": "Sustained chords staying natural, with no swelling."
+          }
+        },
+        {
+          "id": "natural",
+          "name": "Keep It Natural",
+          "tagline": "Barely touched, performance intact",
+          "ratio": { "start": 1.5, "min": 1.5, "max": 2 },
+          "attackMs": { "min": 20, "max": 30, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 150, "max": 250, "start": 500 },
+          "grDb": { "min": 1, "max": 2 },
+          "frontsKeptPct": { "min": 85, "max": 100 },
+          "residualGrMaxDb": 0.5,
+          "listenFor": {
+            "ratioThreshold": "The meter only touching the very loudest moments.",
+            "attack": "Barely there. The performance should feel untouched.",
+            "release": "No audible movement at all."
+          }
+        }
+      ]
+    },
+    {
+      "id": "mixBus",
+      "name": "Mix Bus",
+      "needCheckMinRangeDb": null,
+      "goals": [
+        {
+          "id": "gentleGlue",
+          "name": "Gentle Glue",
+          "tagline": "The whole mix gels together",
+          "ratio": { "start": 2, "min": 1.5, "max": 2 },
+          "attackMs": { "min": 20, "max": 40, "start": 5, "approach": "fromFast" },
+          "releaseMs": { "min": 100, "max": 300, "start": 600 },
+          "grDb": { "min": 1, "max": 2 },
+          "frontsKeptPct": { "min": 85, "max": 100 },
+          "residualGrMaxDb": 1.0,
+          "listenFor": {
+            "ratioThreshold": "One or two dB on the loudest hits, no more.",
+            "attack": "The whole mix gelling together while the drums keep their hit.",
+            "release": "The mix moving with the tempo. If you can hear it pump, it's too much."
+          }
+        }
+      ]
+    },
+    {
+      "id": "spokenVoice",
+      "name": "Spoken Voice / Podcast",
+      "needCheckMinRangeDb": 6,
+      "goals": [
+        {
+          "id": "evenClear",
+          "name": "Even & Clear",
+          "tagline": "Loud and quiet words land closer together",
+          "ratio": { "start": 3, "min": 2, "max": 4 },
+          "attackMs": { "min": 5, "max": 10, "start": 30, "approach": "fromSlow" },
+          "releaseMs": { "min": 60, "max": 100, "start": 250 },
+          "grDb": { "min": 4, "max": 8 },
+          "frontsKeptPct": { "min": 50, "max": 70 },
+          "residualGrMaxDb": 2.0,
+          "listenFor": {
+            "ratioThreshold": "Laughs and loud words coming down to conversation level.",
+            "attack": "Loud words and quiet words landing closer together.",
+            "release": "Steady level sentence to sentence without breaths popping up."
+          }
+        },
+        {
+          "id": "broadcast",
+          "name": "Broadcast Steady",
+          "tagline": "That close, radio-host sound",
+          "ratio": { "start": 5, "min": 4, "max": 6 },
+          "attackMs": { "min": 3, "max": 5, "start": 20, "approach": "fromSlow" },
+          "releaseMs": { "min": 50, "max": 80, "start": 200 },
+          "grDb": { "min": 6, "max": 10 },
+          "frontsKeptPct": { "min": 35, "max": 55 },
+          "residualGrMaxDb": 3.0,
+          "listenFor": {
+            "ratioThreshold": "The voice locking into one steady level.",
+            "attack": "Every word at the same level, close and confident.",
+            "release": "Breaths and room noise getting loud between sentences means release is too fast."
+          }
+        }
+      ]
+    }
+  ]
+}
