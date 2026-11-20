@@ -18,7 +18,7 @@
       "numeral": "I",
       "title": "The Goal",
       "intro": "Compression turns down the loud parts of a sound so the whole thing sits more evenly. How much, and how fast, decides whether it sounds punchy, smooth or squashed.",
-      "doThis": "Play the busiest section of the track for about ten seconds. The Primer will check whether this track needs compression at all.",
+      "doThis": "Play the busiest section of the track for about ten seconds. The plugin will check whether this track needs compression at all.",
       "listenFor": "How much the level jumps around. Notice which parts feel too loud and which get lost."
     },
     {
@@ -68,7 +68,7 @@
   ],
 
   "messages": {
-    "listening": "Keep playing. The Primer needs a few seconds of the loud part to take a reading.",
+    "listening": "Keep playing. The plugin needs a few seconds of the loud part to take a reading.",
     "silence": "Nothing is coming in. Press play on a section where this track is playing.",
     "needCheck": {
       "needed": "This track jumps around enough to benefit. Let's set it up.",
