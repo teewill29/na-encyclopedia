@@ -65,7 +65,7 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 - **JUCE 8**, C++20, **CMake**
 - Formats: **AU** first (testing in Logic Pro), **VST3** from the same build. Windows VST3 after the Mac version is solid.
 - macOS universal binary (Apple Silicon + Intel), macOS 12+
-- Builds on **GitHub Actions** (`macos-14` runner); artifacts are downloaded and tested in Logic on the home Mac
+- Builds on **GitHub Actions** (`macos-15` runner); artifacts are downloaded and tested in Logic on the home Mac
 - Installer: `pkgbuild` / `productbuild` `.pkg` that drops the AU in `~/Library/Audio/Plug-Ins/Components` and the VST3 in `~/Library/Audio/Plug-Ins/VST3`
 - Fonts: Cinzel and EB Garamond (both OFL), embedded via `BinaryData`
 
