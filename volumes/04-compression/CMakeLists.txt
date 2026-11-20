@@ -2,7 +2,7 @@
 
 # Bump on every build you hand to Logic for testing: Logic caches each plugin's
 # name and validation result per version, so a new version forces a fresh look.
-set(NA_COMPRESSION_VERSION 1.0.5)
+set(NA_COMPRESSION_VERSION 1.0.6)
 
 if(APPLE)
     set(NA_COMPRESSION_FORMATS AU VST3)

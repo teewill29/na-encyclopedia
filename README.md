@@ -98,12 +98,12 @@ na-encyclopedia/
 │   ├── UI-REFERENCE.md         # visual spec
 │   └── FEEDBACK-ENGINE.md      # metrics and state machine spec
 ├── assets/
-│   └── fonts/                  # Cinzel, EB Garamond + OFL license files
+│   └── fonts/                  # Cinzel, EB Garamond (static cuts) + OFL license files, see README there
 ├── shared/                     # NAEncyclopediaCore (INTERFACE library: compiled into each plugin)
 │   ├── content/                # JSON loader, templating, goal lookup
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
-│   ├── ui/                     # book frame, spine, pages, knob, meter, buttons, LookAndFeel
+│   ├── ui/                     # Style (palette, fonts), BookFrame (cloth, spine, pages), Controls (knob, meter, buttons, icons, LookAndFeel), MetricsOverlay
 │   └── tests/                  # analysis, content and session unit tests
 ├── volumes/
 │   └── 04-compression/

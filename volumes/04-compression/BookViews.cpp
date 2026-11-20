@@ -8,106 +8,69 @@
 namespace na::vol4
 {
 
+using namespace na::ui;
+namespace P = na::ui::Palette;
+namespace F = na::ui::Fonts;
+
 namespace
 {
-    // docs/UI-REFERENCE.md §3
-    const juce::Colour paper      { 0xFFF4ECDB };
-    const juce::Colour paperField { 0xFFFBF7EE };
-    const juce::Colour paperShade { 0xFFDDCFB3 };
-    const juce::Colour rule       { 0xFFC2B08A };
-    const juce::Colour ink        { 0xFF2A2118 };
-    const juce::Colour inkSoft    { 0xFF4A3C2C };
-    const juce::Colour inkMuted   { 0xFF5E4E3B };
-    const juce::Colour labelInk   { 0xFF6B5A45 };
-    const juce::Colour good       { 0xFF2F5E3A };
-    const juce::Colour warnLow    { 0xFF9A2E1F };
-    const juce::Colour warnHigh   { 0xFF8A5410 };
-    const juce::Colour paperPanel { 0xFFEFE5CF };
-    const juce::Colour meterTrack { 0xFFDCCFB3 };
-    const juce::Colour cloth      { 0xFF213B2F };
-    const juce::Colour gold       { 0xFFCDAE5E };
+    constexpr float bodyLine = 1.45f;
 
-    juce::Font font (float size, bool bold = false, bool italic = false)
+    /** Ornament rule: line, open diamond, line (180 px wide). */
+    void ornament (juce::Graphics& g, float cx, float cy)
     {
-        return juce::FontOptions (size).withStyle (bold ? (italic ? "Bold Italic" : "Bold") : (italic ? "Italic" : "Regular"));
+        g.setColour (P::goldLine);
+        g.fillRect (cx - 90.0f, cy - 0.5f, 78.0f, 1.0f);
+        g.fillRect (cx + 12.0f, cy - 0.5f, 78.0f, 1.0f);
+        juce::Path diamond;
+        diamond.addRectangle (-5.0f, -5.0f, 10.0f, 10.0f);
+        diamond.applyTransform (juce::AffineTransform::rotation (juce::MathConstants<float>::pi * 0.25f).translated (cx, cy));
+        g.strokePath (diamond, juce::PathStrokeType (1.2f));
     }
 
-    /** Draws wrapped text at the top of `area`; returns the height used. */
-    int paragraph (juce::Graphics& g, const juce::String& text, juce::Rectangle<int> area,
-                   const juce::Font& f, juce::Colour colour, juce::Justification just = juce::Justification::topLeft)
+    void eyebrow (juce::Graphics& g, const juce::String& s, juce::Rectangle<int> r, float size = 13.0f, float tracking = 0.24f,
+                  juce::Colour c = P::labelInk, juce::Justification j = juce::Justification::centredLeft)
     {
-        if (text.isEmpty()) return 0;
-        juce::AttributedString s;
-        s.append (text, f, colour);
-        s.setJustification (just);
-        s.setLineSpacing (f.getHeight() * 0.3f);
-        juce::TextLayout layout;
-        layout.createLayout (s, (float) area.getWidth());
-        layout.draw (g, area.toFloat().withHeight (layout.getHeight()));
-        return (int) std::ceil (layout.getHeight());
-    }
-
-    /** Height `text` needs when wrapped to `width`. */
-    int measure (const juce::String& text, const juce::Font& f, int width)
-    {
-        if (text.isEmpty()) return 0;
-        juce::AttributedString s;
-        s.append (text, f);
-        s.setLineSpacing (f.getHeight() * 0.3f);
-        juce::TextLayout layout;
-        layout.createLayout (s, (float) width);
-        return (int) std::ceil (layout.getHeight());
-    }
-
-    void drawCheck (juce::Graphics& g, juce::Rectangle<float> r, juce::Colour c)
-    {
-        juce::Path p;
-        p.startNewSubPath (r.getX() + r.getWidth() * 0.15f, r.getCentreY());
-        p.lineTo (r.getX() + r.getWidth() * 0.42f, r.getBottom() - r.getHeight() * 0.18f);
-        p.lineTo (r.getRight() - r.getWidth() * 0.1f, r.getY() + r.getHeight() * 0.2f);
         g.setColour (c);
-        g.strokePath (p, juce::PathStrokeType (2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-    }
-
-    void styleButton (juce::TextButton& b, bool primary)
-    {
-        b.setColour (juce::TextButton::buttonColourId, primary ? cloth : paperField);
-        b.setColour (juce::TextButton::textColourOffId, primary ? gold : ink);
-        b.setColour (juce::ComboBox::outlineColourId, rule);
+        g.setFont (F::cinzel (size, 500, tracking));
+        g.drawText (s, r, j, false);
     }
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-GoalCard::GoalCard (const juce::String& id, const juce::String& n, const juce::String& t)
-    : juce::Button (n), goalId (id), name (n), tagline (t)
+GoalCard::GoalCard (const juce::String& id, const juce::String& n, const juce::String& t, juce::Colour c)
+    : juce::Button (n), goalId (id), name (n), tagline (t), cloth (c)
 {
     setClickingTogglesState (true);
     setRadioGroupId (1);
+    setMouseCursor (juce::MouseCursor::PointingHandCursor);
 }
 
 void GoalCard::paintButton (juce::Graphics& g, bool highlighted, bool)
 {
-    auto r = getLocalBounds().toFloat().reduced (1.0f);
+    auto r = getLocalBounds().toFloat();
     const bool on = getToggleState();
-    g.setColour (on ? paperShade : (highlighted ? paperField.darker (0.03f) : paperField));
-    g.fillRoundedRectangle (r, 6.0f);
-    g.setColour (on ? cloth : rule);
-    g.drawRoundedRectangle (r, 6.0f, on ? 2.0f : 1.0f);
+    g.setColour (on ? P::cardOn : (highlighted ? P::paperField.darker (0.025f) : P::paperField));
+    g.fillRoundedRectangle (r.reduced (1.0f), 6.0f);
+    g.setColour (on ? cloth : P::cardBorder);
+    g.drawRoundedRectangle (r.reduced (on ? 1.0f : 0.75f), 6.0f, on ? 2.0f : 1.5f);
 
-    auto inner = getLocalBounds().reduced (14, 10);
+    auto inner = getLocalBounds().reduced (14, 12);
+    auto nameRow = inner.removeFromTop (24);
+    const auto nameFont = F::garamond (18.0f, 600);
+    g.setColour (P::ink);
+    g.setFont (nameFont);
+    g.drawText (name, nameRow, juce::Justification::centredLeft);
     if (on)
-        drawCheck (g, inner.removeFromRight (20).removeFromTop (20).toFloat(), cloth);
-    g.setColour (ink);
-    g.setFont (font (17.0f, true));
-    g.drawText (name, inner.removeFromTop (24), juce::Justification::centredLeft);
-    g.setColour (inkMuted);
-    g.setFont (font (14.0f, false, true));
-    g.drawFittedText (tagline, inner, juce::Justification::topLeft, 2);
+        drawIcon (g, Icon::check, { nameRow.getX() + Text::width (name, nameFont) + 6.0f, nameRow.getCentreY() - 8.0f, 16.0f, 16.0f }, P::good);
+    inner.removeFromTop (2);
+    Text::draw (g, tagline, inner, F::garamond (15.0f), P::inkSoft, juce::Justification::topLeft, 1.3f);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 TitleView::TitleView (CompressionAudioProcessor& p)
-    : processor (p), content (p.getContent())
+    : processor (p), content (p.getContent()),
+      cloth (colourFromHex (p.getContent().getString ("book.cloth"), juce::Colour (0xFF213B2F)))
 {
     if (auto* list = content.instruments())
         for (int i = 0; i < list->size(); ++i)
@@ -119,15 +82,13 @@ TitleView::TitleView (CompressionAudioProcessor& p)
     addAndMakeVisible (instrumentBox);
 
     beginButton.setButtonText (text ("begin"));
-    styleButton (beginButton, true);
+    setStyle (beginButton, ButtonStyle::primary);
     beginButton.onClick = [this]
     {
-        const auto instrument = instrumentIds[instrumentBox.getSelectedId() - 1];
         if (selectedGoal.isNotEmpty())
-            processor.beginBook (instrument, selectedGoal);
+            processor.beginBook (instrumentIds[instrumentBox.getSelectedId() - 1], selectedGoal);
     };
     addAndMakeVisible (beginButton);
-
     refresh();
 }
 
@@ -155,12 +116,12 @@ void TitleView::showGoalsFor (const juce::String& instrumentId, const juce::Stri
     if (auto* goals = instrument["goals"].getArray())
         for (const auto& goalVar : *goals)
         {
-            auto* card = goalCards.add (new GoalCard (goalVar["id"].toString(), goalVar["name"].toString(), goalVar["tagline"].toString()));
+            auto* card = goalCards.add (new GoalCard (goalVar["id"].toString(), goalVar["name"].toString(),
+                                                      goalVar["tagline"].toString(), cloth));
             card->onClick = [this, card] { if (card->getToggleState()) { selectedGoal = card->goalId; beginButton.setEnabled (true); } };
             addAndMakeVisible (card);
         }
 
-    // Preselect: the saved goal, or the only goal when there's just one.
     for (auto* card : goalCards)
         if (card->goalId == selectGoal || goalCards.size() == 1)
         {
@@ -173,67 +134,75 @@ void TitleView::showGoalsFor (const juce::String& instrumentId, const juce::Stri
     repaint();
 }
 
-void TitleView::paint (juce::Graphics& g)
-{
-    g.fillAll (paper);
-    auto bounds = getLocalBounds();
-    auto left = bounds.removeFromLeft (bounds.getWidth() / 2).reduced (40);
-    auto right = bounds.reduced (40, 40);
-
-    g.setColour (paperShade);
-    g.fillRect (getWidth() / 2 - 1, 0, 2, getHeight());
-
-    // Left page: the book's title (UI-REFERENCE §6.1)
-    auto y = left.getY() + 150;
-    auto line = [&] (const juce::String& s, const juce::Font& f, juce::Colour c, int h)
-    {
-        g.setColour (c);
-        g.setFont (f);
-        g.drawText (s, left.getX(), y, left.getWidth(), h, juce::Justification::centred);
-        y += h;
-    };
-    line (text ("brand"), font (13.0f, true), labelInk, 30);
-    g.setColour (rule); g.fillRect (left.getCentreX() - 60, y + 6, 120, 1); y += 20;
-    line (text ("series"), font (24.0f, false, true), inkSoft, 40);
-    line (text ("topic"), font (56.0f, true), ink, 76);
-    line (text ("volume"), font (13.0f, true), labelInk, 30);
-    g.setColour (rule); g.fillRect (left.getCentreX() - 60, y + 6, 120, 1); y += 20;
-    line (text ("edition"), font (20.0f, false, true), inkSoft, 34);
-
-    // Right page
-    y = right.getY();
-    g.setColour (labelInk); g.setFont (font (13.0f, true));
-    g.drawText (text ("eyebrow"), right.getX(), y, right.getWidth(), 20, juce::Justification::centredLeft); y += 26;
-    g.setColour (ink); g.setFont (font (34.0f, true));
-    g.drawText (text ("heading"), right.getX(), y, right.getWidth(), 44, juce::Justification::centredLeft); y += 50;
-    paragraph (g, text ("intro"), { right.getX(), y, right.getWidth(), 80 }, font (17.0f), inkSoft);
-    g.setColour (ink); g.setFont (font (16.0f, true));
-    g.drawText (text ("instrumentQuestion"), right.getX(), instrumentBox.getY() - 28, right.getWidth(), 22, juce::Justification::centredLeft);
-    g.drawText (text ("goalQuestion"), right.getX(), instrumentBox.getBottom() + 22, right.getWidth(), 22, juce::Justification::centredLeft);
-
-    if (lesson.isNotEmpty() && ! goalCards.isEmpty())
-        paragraph (g, lesson, { right.getX(), goalCards.getLast()->getBottom() + 16, right.getWidth(), 100 },
-                   font (15.0f, false, true), inkSoft);
-}
-
 void TitleView::resized()
 {
-    auto right = getLocalBounds().removeFromRight (getWidth() / 2).reduced (40, 40);
-    // Matches paint(): eyebrow 26, heading 50, intro, 24 gap, question 28
-    const auto introH = measure (text ("intro"), font (17.0f), right.getWidth());
-    instrumentBox.setBounds (right.getX(), right.getY() + 26 + 50 + introH + 24 + 28, right.getWidth(), 34);
-
-    const int cardTop = instrumentBox.getBottom() + 50;
-    const int cardW = (right.getWidth() - 12) / 2, cardH = 76;
+    // Right page: padding 56 / 56 / 48 (mockup)
+    auto r = rightPage().withTrimmedTop (56).withTrimmedBottom (48).reduced (56, 0);
+    int y = r.getY();
+    y += 20 + 6 + 40 + 4;                                                          // eyebrow, heading
+    y += Text::measure (text ("intro"), F::garamond (18.0f), r.getWidth(), bodyLine) + 22;
+    questionY = y;
+    y += 26 + 8;
+    instrumentBox.setBounds (r.getX(), y, r.getWidth(), 48);
+    y = instrumentBox.getBottom() + 22;
+    goalQuestionY = y;
+    y += 26 + 10;
+    const int cardW = (r.getWidth() - 10) / 2, cardH = 84;
     for (int i = 0; i < goalCards.size(); ++i)
-        goalCards[i]->setBounds (right.getX() + (i % 2) * (cardW + 12), cardTop + (i / 2) * (cardH + 12), cardW, cardH);
+        goalCards[i]->setBounds (r.getX() + (i % 2) * (cardW + 10), y + (i / 2) * (cardH + 10), cardW, cardH);
+    lessonY = goalCards.isEmpty() ? y : goalCards.getLast()->getBottom() + 16;
 
-    beginButton.setBounds (right.getX(), right.getBottom() - 52, right.getWidth(), 52);
+    beginButton.setBounds (r.getX(), r.getBottom() - 54 - 10 - 22, r.getWidth(), 54);
+}
+
+void TitleView::paint (juce::Graphics& g)
+{
+    // ── Left page: the title, centred (UI-REFERENCE §6.1) ───────────────────
+    {
+        const auto l = leftPage();
+        const float cx = (float) l.getCentreX();
+        const int w = l.getWidth() - 112;
+        // Column: 13 + 18 + 14 + 18 + 32 + 18 + 64 + 18 + 18 + 18 + 14 + 18 + 24 = 307
+        int y = l.getCentreY() - 307 / 2;
+        auto row = [&] (int h) { auto rr = juce::Rectangle<int> (l.getX() + 56, y, w, h); y += h + 18; return rr; };
+        eyebrow (g, text ("brand"), row (13), 13.0f, 0.32f, P::labelInk, juce::Justification::centred);
+        ornament (g, cx, (float) y + 7.0f); y += 14 + 18;
+        g.setColour (P::inkSoft); g.setFont (F::garamond (26.0f, 400, true));
+        g.drawText (text ("series"), row (32), juce::Justification::centred);
+        g.setColour (P::ink); g.setFont (F::cinzel (58.0f, 600, 0.04f));
+        g.drawFittedText (text ("topic"), row (64).expanded (40, 0), juce::Justification::centred, 1, 0.7f);
+        eyebrow (g, text ("volume"), row (18), 15.0f, 0.24f, P::inkSoft, juce::Justification::centred);
+        ornament (g, cx, (float) y + 7.0f); y += 14 + 18;
+        g.setColour (P::inkMuted); g.setFont (F::garamond (19.0f, 400, true));
+        g.drawText (text ("edition"), row (24), juce::Justification::centred);
+    }
+
+    // ── Right page ──────────────────────────────────────────────────────────
+    auto r = rightPage().withTrimmedTop (56).withTrimmedBottom (48).reduced (56, 0);
+    eyebrow (g, text ("eyebrow"), r.withHeight (20));
+    g.setColour (P::ink); g.setFont (F::garamond (34.0f, 500));
+    g.drawText (text ("heading"), r.withY (r.getY() + 26).withHeight (40), juce::Justification::centredLeft);
+    Text::draw (g, text ("intro"), r.withY (r.getY() + 26 + 44).withHeight (80), F::garamond (18.0f), P::inkSoft,
+                juce::Justification::topLeft, bodyLine);
+
+    g.setColour (P::ink); g.setFont (F::garamond (17.0f, 600));
+    g.drawText (text ("instrumentQuestion"), r.withY (questionY).withHeight (26), juce::Justification::centredLeft);
+    g.drawText (text ("goalQuestion"), r.withY (goalQuestionY).withHeight (26), juce::Justification::centredLeft);
+
+    if (lesson.isNotEmpty())
+        Text::draw (g, lesson, r.withY (lessonY).withBottom (beginButton.getY() - 10), F::garamond (16.0f, 400, true),
+                    P::inkSoft, juce::Justification::topLeft, 1.4f);
+
+    g.setColour (P::inkMuted); g.setFont (F::garamond (15.0f, 400, true));
+    g.drawText (text ("footnote"), r.withY (beginButton.getBottom() + 10).withHeight (22), juce::Justification::centred);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-ChapterRow::ChapterRow (const juce::String& id, const juce::String& n, const juce::String& t, const juce::String& rn)
-    : juce::Button (t), chapterId (id), numeral (n), title (t), readingNow (rn) {}
+ChapterRow::ChapterRow (const juce::String& id, const juce::String& n, const juce::String& t, const juce::String& rn, juce::Colour c)
+    : juce::Button (t), chapterId (id), numeral (n), title (t), readingNow (rn), cloth (c)
+{
+    setMouseCursor (juce::MouseCursor::PointingHandCursor);
+}
 
 void ChapterRow::setStatus (bool isCurrent, bool isDone)
 {
@@ -244,68 +213,68 @@ void ChapterRow::setStatus (bool isCurrent, bool isDone)
 
 void ChapterRow::paintButton (juce::Graphics& g, bool highlighted, bool)
 {
-    auto r = getLocalBounds();
+    auto r = getLocalBounds().toFloat();
     if (current)
     {
-        g.setColour (paperShade);
-        g.fillRect (r);
+        g.setColour (P::rowCurrent);
+        g.fillRoundedRectangle (r, 4.0f);
         g.setColour (cloth);
-        g.fillRect (r.removeFromLeft (3));
+        g.fillRect (r.removeFromLeft (3.0f));
     }
     else if (highlighted)
     {
-        g.setColour (paperShade.withAlpha (0.4f));
-        g.fillRect (r);
+        g.setColour (P::rowCurrent.withAlpha (0.45f));
+        g.fillRoundedRectangle (r, 4.0f);
     }
 
     auto inner = getLocalBounds().reduced (10, 0);
-    const auto c = current || done ? ink : inkMuted;
-    g.setColour (c);
-    g.setFont (font (14.0f, true));
+    const bool notYet = ! current && ! done;
+    g.setColour (current ? P::ink : P::labelInk);
+    g.setFont (F::cinzel (15.0f, current ? 700 : 500));
     g.drawText (numeral, inner.removeFromLeft (30), juce::Justification::centredLeft);
+    inner.removeFromLeft (12);
 
-    auto status = inner.removeFromRight (90);
+    const auto readingFont = F::garamond (14.0f, 400, true);
+    auto status = inner.removeFromRight ((current ? (int) Text::width (readingNow, readingFont) + 8 : 0) + (done ? 24 : 0));
     if (done)
-        drawCheck (g, status.removeFromRight (18).withSizeKeepingCentre (18, 18).toFloat(), good);
-    else if (current)
     {
-        g.setColour (inkMuted);
-        g.setFont (font (13.0f, false, true));
+        drawIcon (g, Icon::check, status.removeFromRight (18).withSizeKeepingCentre (18, 18).toFloat(), P::good);
+        status.removeFromRight (6);
+    }
+    if (current)
+    {
+        g.setColour (P::inkSoft);
+        g.setFont (readingFont);
         g.drawText (readingNow, status, juce::Justification::centredRight);
     }
 
-    g.setColour (c);
-    g.setFont (font (16.0f, current));
-    g.drawText (title, inner, juce::Justification::centredLeft);
+    g.setColour (notYet ? P::labelInk : P::ink);
+    g.setFont (F::garamond (18.0f, current ? 600 : 400));
+    g.drawFittedText (title, inner, juce::Justification::centredLeft, 1, 0.8f);
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 ChapterView::ChapterView (CompressionAudioProcessor& p)
-    : processor (p), content (p.getContent())
+    : processor (p), content (p.getContent()),
+      cloth (colourFromHex (p.getContent().getString ("book.cloth"), juce::Colour (0xFF213B2F)))
 {
     changeButton.setButtonText (text ("change"));
+    setStyle (changeButton, ButtonStyle::text);
     changeButton.onClick = [this] { processor.getSession().showTitlePage(); };
-    changeButton.setColour (juce::TextButton::buttonColourId, paper);
-    changeButton.setColour (juce::TextButton::textColourOffId, inkSoft);
     addAndMakeVisible (changeButton);
 
-    styleButton (previousButton, false);
+    setStyle (previousButton, ButtonStyle::text);
     previousButton.onClick = [this] { processor.previousChapter(); };
     addAndMakeVisible (previousButton);
 
-    styleButton (nextButton, true);
+    setStyle (nextButton, ButtonStyle::primary);
     nextButton.onClick = [this] { processor.nextChapter(); };
     addAndMakeVisible (nextButton);
 
-    knob.setColour (juce::Slider::rotarySliderFillColourId, gold);
-    knob.setColour (juce::Slider::rotarySliderOutlineColourId, juce::Colour (0xFF3A3A3A));
-    knob.setColour (juce::Slider::thumbColourId, gold);
-    knob.setColour (juce::Slider::textBoxTextColourId, ink);
-    knob.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    knob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 140, 26);
+    knob.setActive (true);
     addChildComponent (knob);
 
-    startTimerHz (10); // live values: dynamic range, "set so far"
+    startTimerHz (15); // live values: The Reading, Chapter I readout, Set so far
 }
 
 ChapterView::~ChapterView()
@@ -328,6 +297,12 @@ juce::String ChapterView::chapterText (const char* field) const
     return na::Template::fill (chapter[field].toString(), na::Template::forGoal (goal));
 }
 
+juce::String ChapterView::doThisText() const
+{
+    if (chapter.hasProperty ("doThis")) return chapterText ("doThis");
+    return chapterText (goal["attackMs"]["approach"].toString() == "fromSlow" ? "doThisFromSlow" : "doThisFromFast");
+}
+
 void ChapterView::refresh()
 {
     const auto& session = processor.getSession();
@@ -336,14 +311,13 @@ void ChapterView::refresh()
     goal = session.getGoal();
     chapter = content.findChapter (current);
 
-    // Contents rows
     if (rows.size() != ids.size() || (rows.size() > 0 && rows[0]->chapterId != ids[0]))
     {
         rows.clear();
         for (const auto& id : ids)
         {
             const auto c = content.findChapter (id);
-            auto* row = rows.add (new ChapterRow (id, c["numeral"].toString(), c["title"].toString(), text ("readingNow")));
+            auto* row = rows.add (new ChapterRow (id, c["numeral"].toString(), c["title"].toString(), text ("readingNow"), cloth));
             row->onClick = [this, id] { processor.openChapter (id); };
             addAndMakeVisible (row);
         }
@@ -351,37 +325,33 @@ void ChapterView::refresh()
     for (auto* row : rows)
         row->setStatus (row->chapterId == current, session.isDone (row->chapterId));
 
-    // The chapter's knob (rebuilt only when the chapter changes, so a refresh
-    // for a new check mark doesn't interrupt a drag)
-    const auto* chapterRule = ruleFor (current);
+    // The chapter's knob; rebuilt only when the chapter changes, so a new
+    // check mark doesn't interrupt a drag.
+    const auto* rule = ruleFor (current);
     if (current != attachedChapter)
     {
         attachedChapter = current;
         knobAttachment.reset();
-        knob.setVisible (chapterRule != nullptr && chapterRule->paramId != nullptr);
+        knob.setVisible (rule != nullptr && rule->paramId != nullptr);
         if (knob.isVisible())
-            knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-                processor.getValueTree(), chapterRule->paramId, knob);
+            knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.getValueTree(), rule->paramId, knob);
     }
     knobName = {};
     targetCaption = {};
     if (knob.isVisible())
     {
-        knobName = content.getString (juce::String ("parameters.") + chapterRule->paramId + ".name").toUpperCase();
-        if (chapterRule->targetKey != nullptr && goal[chapterRule->targetKey].isObject())
+        knobName = content.getString (juce::String ("parameters.") + rule->paramId + ".name").toUpperCase();
+        if (rule->targetKey != nullptr && goal[rule->targetKey].isObject())
         {
-            const auto range = goal[chapterRule->targetKey];
+            const auto range = goal[rule->targetKey];
             const auto min = na::Template::formatNumber ((double) range["min"]);
             const auto max = na::Template::formatNumber ((double) range["max"]);
-            const juce::String key (chapterRule->targetKey);
-            targetCaption = key == "grDb"
-                ? fill (text ("targetGr"), { { "min", min }, { "max", max } })
-                : fill (text ("target"), { { "min", min }, { "max", max },
-                                           { "unit", content.getString ("book.units." + key) } });
+            const juce::String key (rule->targetKey);
+            targetCaption = key == "grDb" ? fill (text ("targetGr"), { { "min", min }, { "max", max } })
+                                          : fill (text ("target"), { { "min", min }, { "max", max }, { "unit", content.getString ("book.units." + key) } });
         }
     }
 
-    // Previous / next
     const auto index = session.getCurrentIndex();
     previousButton.setVisible (index > 0);
     nextButton.setVisible (index >= 0 && index + 1 < ids.size());
@@ -394,98 +364,209 @@ void ChapterView::refresh()
     repaint();
 }
 
+void ChapterView::layoutRightPage()
+{
+    // Right page padding 36 / 44 / 30 (mockup). Long chapters step the text
+    // down (never below 15 px) instead of overlapping.
+    const auto r = rightPage().withTrimmedTop (36).withTrimmedBottom (30).reduced (44, 0);
+    const int bottomRow = 46, knobW = 170, colGap = 32;
+    int gap = 18;
+
+    // Every message this chapter can show, so The Reading's height never jumps.
+    juce::StringArray messages { content.getString ("messages.silence"), content.getString ("messages.listening") };
+    if (auto* group = content.get ("messages." + Feedback::messageGroupFor (chapter["id"].toString())).getDynamicObject())
+        for (const auto& prop : group->getProperties())
+            messages.add (prop.value.toString());
+    const int captionH = Text::measure (targetCaption, F::garamond (14.0f, 400, true), knobW, 1.3f);
+    const int knobExtras = 16 + 8 + 4 + 16 + 4 + 32 + 4 + captionH;    // name, range, value, target
+    knobSize = 132;
+    const bool hasMeters = ! Feedback::metersFor (chapter["id"].toString(), goal, processor.getMetrics(), processor.getSettings()).empty();
+
+    readingPad = 16; readingGap = 12;
+    for (int attempt = 0; attempt < 24; ++attempt)
+    {
+        int y = r.getY();
+        header = { r.getX(), y, r.getWidth(), 20 };                         y += 20 + 8;
+        titleArea = { r.getX(), y, r.getWidth(), 48 };                      y += 48 + 6;
+        subtitleArea = { r.getX(), y, r.getWidth(), chapter.hasProperty ("subtitle") ? 26 : 0 };
+        y += subtitleArea.getHeight();
+        const int introH = Text::measure (chapterText ("intro"), F::garamond (introSize), r.getWidth(), bodyLine);
+        introArea = { r.getX(), y, r.getWidth(), introH };                  y += introH + gap;
+
+        const int instrW = r.getWidth() - knobW - colGap;
+        int instrH = 0;
+        for (const auto& body : { doThisText(), chapterText ("listenFor"), chapterText ("tryThis") })
+            if (body.isNotEmpty())
+                instrH += (instrH > 0 ? 14 : 0) + 17 + 4 + Text::measure (body, F::garamond (instructionSize), instrW, bodyLine);
+
+        const int msgW = r.getWidth() - 40 - 24;
+        int msgH = 0;
+        for (const auto& m : messages)
+            msgH = juce::jmax (msgH, Text::measure (m, F::garamond (messageSize), msgW, 1.4f));
+        const int readingH = readingPad + 18 + readingGap + 26 + msgH + (hasMeters ? readingGap + na::ui::meterHeight : 0) + readingPad;
+        reading = { r.getX(), r.getBottom() - bottomRow - gap - readingH, r.getWidth(), readingH };
+
+        const int available = reading.getY() - gap - y;
+        // The knob shrinks (to 96 px) before any text does.
+        knobSize = juce::jlimit (96, 132, available - knobExtras);
+        const int knobNeeded = knobExtras + knobSize;
+        const int needed = juce::jmax (knob.isVisible() ? knobNeeded : 120, instrH);
+        knobBlock = { r.getX(), y, knobW, juce::jmax (knobNeeded, available) };
+        instructions = { r.getX() + knobW + colGap, y, instrW, juce::jmax (instrH, available) };
+        if (needed <= available) break;
+
+        // Tighten step by step; body text never below 14 px (spec minimum 13).
+        if (instructionSize > 15.5f)      instructionSize -= 0.5f;
+        else if (gap > 12)                gap -= 3;
+        else if (readingPad > 12)         { readingPad -= 4; readingGap -= 4; }
+        else if (introSize > 16.0f)       introSize -= 0.5f;
+        else if (instructionSize > 14.0f) instructionSize -= 0.5f;
+        else if (messageSize > 15.0f)     messageSize -= 0.5f;
+        else if (introSize > 15.0f)       introSize -= 0.5f;
+        else break;
+    }
+
+    // The slider is larger than the knob so the gold ring's shadow isn't clipped.
+    const int pad = 18;
+    knob.setBounds (knobBlock.getCentreX() - knobSize / 2 - pad, knobBlock.getY() + 16 + 8 - pad, knobSize + 2 * pad, knobSize + 2 * pad);
+}
+
+void ChapterView::resized()
+{
+    // ── Left page: padding 40 / 32 / 32 / 36 ────────────────────────────────
+    const auto l = leftPage().withTrimmedTop (40).withTrimmedBottom (32).withTrimmedLeft (36).withTrimmedRight (32);
+    changeButton.setBounds (l.getRight() - 64, l.getY() + 20, 64, 34);
+    int y = l.getY() + 20 + 34 + 12 + 1 + 16;
+    for (auto* row : rows)
+    {
+        row->setBounds (l.getX(), y, l.getWidth(), 44);
+        y += 44 + 2;
+    }
+    setSoFarArea = l.withTop (l.getBottom() - (16 + 12 + 3 * 48 + 2 * 12));
+
+    // ── Right page ──────────────────────────────────────────────────────────
+    introSize = 18.0f; instructionSize = 17.0f; messageSize = 17.0f;
+    layoutRightPage();
+    const auto r = rightPage().withTrimmedTop (36).withTrimmedBottom (30).reduced (44, 0);
+    const auto bottom = r.withTop (r.getBottom() - 46);
+    const int nextW = (int) Text::width (nextButton.getButtonText(), F::cinzel (14.0f, 600, 0.14f)) + 44;
+    nextButton.setBounds (bottom.getRight() - nextW, bottom.getY(), nextW, 46);
+    const int prevW = (int) Text::width (previousButton.getButtonText(), F::garamond (16.0f, 400, true)) + 28;
+    previousButton.setBounds ((nextButton.isVisible() ? nextButton.getX() - 10 : bottom.getRight()) - prevW, bottom.getY(), prevW, 46);
+}
+
 void ChapterView::paint (juce::Graphics& g)
 {
-    g.fillAll (paper);
-    g.setColour (paperShade);
-    g.fillRect (leftPage.getRight() + 15, 0, 2, getHeight());
+    paintContents (g);
+    paintChapter (g);
+    paintReading (g, reading);
+}
 
+void ChapterView::paintContents (juce::Graphics& g)
+{
+    const auto& session = processor.getSession();
+    const auto l = leftPage().withTrimmedTop (40).withTrimmedBottom (32).withTrimmedLeft (36).withTrimmedRight (32);
+
+    eyebrow (g, text ("contents"), l.withHeight (16));
+    const auto setupLine = fill (text ("setup"), { { "instrument", session.getInstrument()["name"].toString() },
+                                                   { "goal", goal["name"].toString() } });
+    g.setColour (P::ink);
+    g.setFont (F::garamond (20.0f, 600));
+    g.drawFittedText (setupLine, l.withY (l.getY() + 20).withHeight (34).withTrimmedRight (70), juce::Justification::centredLeft, 1, 0.8f);
+    g.setColour (P::rule);
+    g.fillRect (l.getX(), l.getY() + 20 + 34 + 12, l.getWidth(), 1);
+
+    // Set so far: small knobs (48 px) with name and value, for chapters before this one
+    auto sf = setSoFarArea;
+    eyebrow (g, text ("setSoFar"), sf.removeFromTop (16), 12.0f);
+    sf.removeFromTop (12);
+    juce::StringArray params;
+    const auto& ids = session.getChapterIds();
+    for (int i = 0; i < session.getCurrentIndex() && i < ids.size(); ++i)
+        if (const auto* r = ruleFor (ids[i]); r != nullptr && r->paramId != nullptr)
+        {
+            params.add (r->paramId);
+            if (ids[i] == "ratioThreshold") params.add ("ratio");   // set by the goal in Chapter II
+        }
+    const int colW = (sf.getWidth() - 22) / 2;
+    for (int i = 0; i < params.size() && i < 6; ++i)
+        if (auto* param = processor.getValueTree().getParameter (params[i]))
+        {
+            auto cell = juce::Rectangle<int> (sf.getX() + (i % 2) * (colW + 22), sf.getY() + (i / 2) * 60, colW, 48);
+            drawKnob (g, cell.removeFromLeft (48).toFloat(),
+                      knobStartAngle + param->getValue() * (knobEndAngle - knobStartAngle), false);
+            cell.removeFromLeft (10);
+            g.setColour (P::inkMuted); g.setFont (F::garamond (14.0f));
+            g.drawFittedText (param->getName (64), cell.removeFromTop (22).withTrimmedTop (4), juce::Justification::centredLeft, 1, 0.75f);
+            g.setColour (P::ink); g.setFont (F::garamond (17.0f, 600));
+            g.drawText (param->getCurrentValueAsText(), cell.removeFromTop (22), juce::Justification::centredLeft);
+        }
+}
+
+void ChapterView::paintChapter (juce::Graphics& g)
+{
     const auto& session = processor.getSession();
 
-    // ── Left page: Contents ─────────────────────────────────────────────────
-    {
-        auto area = leftPage;
-        g.setColour (labelInk); g.setFont (font (13.0f, true));
-        g.drawText (text ("contents"), area.removeFromTop (24), juce::Justification::centredLeft);
-        const auto setupLine = fill (text ("setup"), { { "instrument", session.getInstrument()["name"].toString() },
-                                                       { "goal", goal["name"].toString() } });
-        g.setColour (ink); g.setFont (font (16.0f));
-        g.drawText (setupLine, area.removeFromTop (34).withTrimmedRight (90), juce::Justification::centredLeft);
-
-        // Set so far: the knobs of the chapters before this one
-        auto sf = setSoFarArea;
-        g.setColour (labelInk); g.setFont (font (13.0f, true));
-        g.drawText (text ("setSoFar"), sf.removeFromTop (24), juce::Justification::centredLeft);
-        const auto& ids = session.getChapterIds();
-        for (int i = 0; i < session.getCurrentIndex() && i < ids.size(); ++i)
-            if (const auto* r = ruleFor (ids[i]); r != nullptr && r->paramId != nullptr)
-                if (auto* param = processor.getValueTree().getParameter (r->paramId))
-                {
-                    auto row = sf.removeFromTop (24);
-                    g.setColour (inkMuted); g.setFont (font (15.0f));
-                    g.drawText (param->getName (64), row, juce::Justification::centredLeft);
-                    g.setColour (ink);
-                    g.drawText (param->getCurrentValueAsText(), row, juce::Justification::centredRight);
-                }
-    }
-
-    // ── Right page: the chapter ─────────────────────────────────────────────
-    auto area = rightPage;
-    auto top = area.removeFromTop (24);
-    g.setColour (labelInk); g.setFont (font (13.0f, true));
-    g.drawText (fill (text ("eyebrow"), { { "numeral", chapter["numeral"].toString() } }), top, juce::Justification::centredLeft);
-    g.setColour (inkMuted); g.setFont (font (15.0f, false, true));
+    eyebrow (g, fill (text ("eyebrow"), { { "numeral", chapter["numeral"].toString() } }), header);
+    g.setColour (P::inkMuted); g.setFont (F::garamond (14.0f, 400, true));
     g.drawText (fill (text ("counter"), { { "current", juce::String (session.getCurrentIndex() + 1) },
                                           { "total", juce::String (session.getChapterIds().size()) } }),
-                top, juce::Justification::centredRight);
+                header, juce::Justification::centredRight);
 
-    g.setColour (ink); g.setFont (font (38.0f, true));
-    g.drawText (chapter["title"].toString(), area.removeFromTop (52), juce::Justification::centredLeft);
-    if (chapter.hasProperty ("subtitle"))
+    g.setColour (P::ink); g.setFont (F::cinzel (42.0f, 600, 0.03f));
+    g.drawText (chapter["title"].toString(), titleArea, juce::Justification::centredLeft);
+    if (! subtitleArea.isEmpty())
     {
-        g.setColour (inkSoft); g.setFont (font (17.0f, false, true));
-        g.drawText (chapterText ("subtitle"), area.removeFromTop (26), juce::Justification::centredLeft);
+        g.setColour (P::inkSoft); g.setFont (F::garamond (18.0f, 400, true));
+        g.drawText (chapterText ("subtitle"), subtitleArea, juce::Justification::centredLeft);
     }
-    area.removeFromTop (6);
-    paragraph (g, chapterText ("intro"), area.withBottom (knobBlock.getY() - 8), font (17.0f), inkSoft);
+    Text::draw (g, chapterText ("intro"), introArea, F::garamond (introSize), juce::Colour (0xFF3A2E22),
+                juce::Justification::topLeft, bodyLine);
 
-    // Knob block: name above, target below (the knob draws its own value)
+    // Knob block: name, knob, range labels, value, target
     if (knob.isVisible())
     {
-        g.setColour (labelInk); g.setFont (font (12.0f, true));
-        g.drawText (knobName, knobBlock.withHeight (20), juce::Justification::centred);
-        paragraph (g, targetCaption, knobBlock.withTop (knob.getBottom() + 4), font (14.0f, false, true), inkMuted,
-                   juce::Justification::centredTop);
+        eyebrow (g, knobName, knobBlock.withHeight (16), 12.0f, 0.22f, P::labelInk, juce::Justification::centred);
+        auto* param = processor.getValueTree().getParameter (ruleFor (session.getCurrentChapterId())->paramId);
+        int y = knob.getBottom() - 18 + 4;
+        if (param != nullptr)
+        {
+            auto range = juce::Rectangle<int> (knobBlock.getCentreX() - 75, y, 150, 16);
+            g.setColour (P::inkMuted); g.setFont (F::garamond (13.0f));
+            g.drawText (param->getText (0.0f, 32), range, juce::Justification::centredLeft);
+            g.drawText (param->getText (1.0f, 32), range, juce::Justification::centredRight);
+            y += 16 + 4;
+            g.setColour (P::ink); g.setFont (F::cinzel (26.0f, 600));
+            g.drawText (param->getCurrentValueAsText(), knobBlock.withY (y).withHeight (32), juce::Justification::centred);
+            y += 32 + 4;
+        }
+        Text::draw (g, targetCaption, knobBlock.withY (y).withHeight (60), F::garamond (14.0f, 400, true), P::inkSoft,
+                    juce::Justification::centredTop, 1.3f);
     }
     else if (chapter["id"].toString() == "goal")
     {
-        // Chapter I: no knob; the dynamic range readout instead (UI-REFERENCE §6.3)
+        // Chapter I: a large dynamic range readout instead of a knob (UI-REFERENCE §6.3)
         const auto dr = processor.getMetrics().dynamicRangeDb;
-        auto block = knobBlock.withTrimmedTop (40);
-        g.setColour (ink);
+        auto block = knobBlock.withTrimmedTop (24);
         if (std::isnan (dr))
-            paragraph (g, text ("dynamicRangeWaiting"), block, font (16.0f, false, true), inkMuted, juce::Justification::centredTop);
+            Text::draw (g, text ("dynamicRangeWaiting"), block, F::garamond (17.0f, 400, true), P::inkMuted, juce::Justification::centredTop, 1.35f);
         else
-            paragraph (g, fill (text ("dynamicRange"), { { "value", juce::String (dr, 1) } }),
-                       block, font (30.0f, true), ink, juce::Justification::centredTop);
+            Text::draw (g, fill (text ("dynamicRange"), { { "value", juce::String (dr, 1) } }), block,
+                        F::cinzel (26.0f, 600), P::ink, juce::Justification::centredTop, 1.25f);
     }
 
     // Instructions
-    auto instructions = textBlock;
-    auto section = [&] (const char* eyebrowKey, const juce::String& body)
+    auto area = instructions;
+    auto section = [&] (const char* key, const juce::String& body)
     {
         if (body.isEmpty()) return;
-        g.setColour (labelInk); g.setFont (font (12.0f, true));
-        g.drawText (text (eyebrowKey), instructions.removeFromTop (18), juce::Justification::centredLeft);
-        instructions.removeFromTop (paragraph (g, body, instructions, font (15.5f), ink) + 10);
+        eyebrow (g, text (key), area.removeFromTop (17), 13.0f, 0.2f);
+        area.removeFromTop (4);
+        area.removeFromTop (Text::draw (g, body, area, F::garamond (instructionSize), P::ink, juce::Justification::topLeft, bodyLine) + 14);
     };
-    const bool fromSlow = goal["attackMs"]["approach"].toString() == "fromSlow";
-    section ("doThis", chapter.hasProperty ("doThis") ? chapterText ("doThis")
-                       : chapterText (fromSlow ? "doThisFromSlow" : "doThisFromFast"));
+    section ("doThis", doThisText());
     section ("listenFor", chapterText ("listenFor"));
     section ("tryThis", chapterText ("tryThis"));
-
-    paintReading (g, readingArea);
 }
 
 void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
@@ -496,120 +577,70 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     const auto& fb = processor.getFeedback();
     const auto chapterId = chapter["id"].toString();
     const auto group = Feedback::messageGroupFor (chapterId);
+    const auto meters = Feedback::metersFor (chapterId, goal, processor.getMetrics(), processor.getSettings());
 
     juce::String statusKey, messageKey;
     Tone tone = Tone::neutral;
-    if (fb.phase == Phase::silence)
-        statusKey = "silence", messageKey = "silence";
-    else if (fb.phase == Phase::listening || fb.zone.empty())
-        statusKey = "listening", messageKey = "listening";
+    if (fb.phase == Phase::silence)                           statusKey = messageKey = "silence";
+    else if (fb.phase == Phase::listening || fb.zone.empty()) statusKey = messageKey = "listening";
     else
     {
-        statusKey = group + "." + juce::String (fb.zone);
-        messageKey = statusKey;
+        statusKey = messageKey = group + "." + juce::String (fb.zone);
         tone = Feedback::toneFor (chapterId, fb.zone);
     }
-    const auto toneColour = tone == Tone::good ? good : tone == Tone::tooMuch ? warnLow : tone == Tone::tooLittle ? warnHigh : inkMuted;
+    const auto toneColour = tone == Tone::good ? P::good : tone == Tone::tooMuch ? P::warnLow : tone == Tone::tooLittle ? P::warnHigh : P::inkMuted;
     const float alpha = fb.dimmed ? 0.45f : 1.0f;
 
-    g.setColour (paperPanel);
+    g.setColour (P::paperPanel);
     g.fillRoundedRectangle (area.toFloat(), 6.0f);
-    g.setColour (rule);
+    g.setColour (P::rule);
     g.drawRoundedRectangle (area.toFloat().reduced (0.5f), 6.0f, 1.0f);
 
-    auto inner = area.reduced (16, 10);
-    auto header = inner.removeFromTop (18);
-    g.setColour (labelInk); g.setFont (font (12.0f, true));
-    g.drawText (content.getString ("book.reading.title"), header, juce::Justification::centredLeft);
+    auto inner = area.reduced (20, readingPad);
+    auto head = inner.removeFromTop (18);
+    eyebrow (g, content.getString ("book.reading.title"), head, 13.0f, 0.24f, P::inkSoft);
     const bool listening = processor.isListening();
     const auto liveText = content.getString (listening ? "book.reading.live" : "book.reading.idle");
-    g.setColour (inkMuted); g.setFont (font (13.0f, false, true));
-    g.drawText (liveText, header, juce::Justification::centredRight);
-    const auto liveW = juce::GlyphArrangement::getStringWidthInt (font (13.0f, false, true), liveText);
-    g.setColour (listening ? good : inkMuted.withAlpha (0.4f));
-    g.fillEllipse ((float) (header.getRight() - liveW - 14), (float) header.getCentreY() - 4.0f, 8.0f, 8.0f);
-    inner.removeFromTop (6);
+    const auto liveFont = F::garamond (14.0f, 400, true);
+    g.setColour (P::inkMuted); g.setFont (liveFont);
+    g.drawText (liveText, head, juce::Justification::centredRight);
+    g.setColour (listening ? P::warnLow : P::inkMuted.withAlpha (0.35f));
+    g.fillEllipse ((float) head.getRight() - Text::width (liveText, liveFont) - 14.0f, (float) head.getCentreY() - 4.0f, 8.0f, 8.0f);
+    inner.removeFromTop (readingGap);
 
-    // Status: dot + label (in words) + coaching message
-    auto status = inner.removeFromTop (48);
+    // Status: dot + label (in words, never colour alone) + coaching message
+    auto status = inner.removeFromTop (inner.getHeight() - (meters.empty() ? 0 : readingGap + na::ui::meterHeight));
     g.setColour (toneColour.withMultipliedAlpha (alpha));
-    g.fillEllipse ((float) status.getX(), (float) status.getY() + 5.0f, 12.0f, 12.0f);
-    status.removeFromLeft (20);
-    g.setFont (font (18.0f, true));
-    g.drawText (content.getString ("book.reading.status." + statusKey), status.removeFromLeft (190).withHeight (22), juce::Justification::centredLeft);
-    paragraph (g, content.getString ("messages." + messageKey), status, font (15.0f), ink.withMultipliedAlpha (alpha));
+    g.fillEllipse ((float) status.getX(), (float) status.getY() + 7.0f, 12.0f, 12.0f);
+    status.removeFromLeft (24);
+    g.setFont (F::garamond (20.0f, 600));
+    g.drawText (content.getString ("book.reading.status." + statusKey), status.removeFromTop (26), juce::Justification::centredLeft);
+    Text::draw (g, content.getString ("messages." + messageKey), status, F::garamond (messageSize), P::ink.withMultipliedAlpha (alpha),
+                juce::Justification::topLeft, 1.4f);
 
     // Meters, side by side
-    const auto meters = Feedback::metersFor (chapterId, goal, processor.getMetrics(), processor.getSettings());
     if (meters.empty()) return;
-    inner.removeFromTop (4);
+    inner.removeFromTop (readingGap);
     const int gap = 24;
     const int w = (inner.getWidth() - gap * ((int) meters.size() - 1)) / (int) meters.size();
     for (size_t i = 0; i < meters.size(); ++i)
     {
         const auto& m = meters[i];
-        auto r = juce::Rectangle<int> (inner.getX() + (int) i * (w + gap), inner.getY(), w, 34);
-        auto labelRow = r.removeFromTop (18);
-        g.setColour (inkSoft); g.setFont (font (13.0f));
-        g.drawText (content.getString (juce::String ("book.reading.meters.") + m.labelKey), labelRow, juce::Justification::centredLeft);
-        g.setColour (ink);
-        g.drawText (std::isnan (m.value) ? content.getString ("debug.none")
-                                         : (m.decimals > 0 ? juce::String (m.value, m.decimals) : juce::String (juce::roundToInt (m.value))) + content.getString (juce::String ("debug.units.") + m.unitKey),
-                    labelRow, juce::Justification::centredRight);
-
-        auto track = r.removeFromTop (12).toFloat();
-        const auto toX = [&] (float v) { return track.getX() + track.getWidth() * juce::jlimit (0.0f, 1.0f, (v - m.rangeMin) / (m.rangeMax - m.rangeMin)); };
-        g.setColour (meterTrack);
-        g.fillRoundedRectangle (track, 6.0f);
+        MeterSpec spec;
+        spec.label = content.getString (juce::String ("book.reading.meters.") + m.labelKey);
+        const auto unit = content.getString (juce::String ("debug.units.") + m.unitKey);
+        spec.valueText = std::isnan (m.value) ? content.getString ("debug.none")
+                       : (m.decimals > 0 ? juce::String (m.value, m.decimals) : juce::String (juce::roundToInt (m.value))) + unit;
         if (! std::isnan (m.targetMin))
-        {
-            const auto zone = juce::Rectangle<float>::leftTopRightBottom (toX (m.targetMin), track.getY(), toX (m.targetMax), track.getBottom());
-            g.setColour (good.withAlpha (0.22f));
-            g.fillRect (zone);
-            g.setColour (good);
-            g.fillRect (zone.withWidth (1.0f));
-            g.fillRect (zone.withX (zone.getRight() - 1.0f).withWidth (1.0f));
-        }
-        if (! std::isnan (m.value))
-        {
-            const auto zeroX = toX (juce::jmax (m.rangeMin, 0.0f));
-            const auto valueX = toX (m.value);
-            const auto fill = juce::Rectangle<float>::leftTopRightBottom (juce::jmin (zeroX, valueX), track.getY() + 3.0f,
-                                                                        juce::jmax (zeroX, valueX), track.getBottom() - 3.0f);
-            // Single-meter chapters colour the fill by status; the plain GR meter stays neutral.
-            g.setColour ((m.showsStatus ? toneColour : inkMuted).withMultipliedAlpha (alpha));
-            g.fillRoundedRectangle (fill.withWidth (juce::jmax (2.0f, fill.getWidth())), 3.0f);
-        }
+            spec.caption = fill (content.getString ("book.reading.meterTarget"),
+                                 { { "min", na::Template::formatNumber (m.targetMin) }, { "max", na::Template::formatNumber (m.targetMax) }, { "unit", unit } });
+        spec.value = m.value;
+        spec.rangeMin = m.rangeMin;   spec.rangeMax = m.rangeMax;
+        spec.targetMin = m.targetMin; spec.targetMax = m.targetMax;
+        spec.fill = m.showsStatus ? toneColour : P::inkMuted;
+        spec.alpha = alpha;
+        drawMeter (g, { inner.getX() + (int) i * (w + gap), inner.getY(), w, na::ui::meterHeight }, spec);
     }
-}
-
-void ChapterView::resized()
-{
-    auto bounds = getLocalBounds().reduced (28, 24);
-    leftPage = bounds.removeFromLeft (330);
-    bounds.removeFromLeft (40);
-    rightPage = bounds.withTrimmedBottom (62);
-
-    changeButton.setBounds (leftPage.getRight() - 84, leftPage.getY() + 26, 84, 30);
-    for (int i = 0; i < rows.size(); ++i)
-        rows[i]->setBounds (leftPage.getX(), leftPage.getY() + 80 + i * 44, leftPage.getWidth(), 44);
-    setSoFarArea = leftPage.withTop (leftPage.getY() + 80 + 6 * 44 + 30);
-
-    // Matches paint(): eyebrow 24, title 52, subtitle 26, gap 6, intro, gap 24
-    int y = rightPage.getY() + 24 + 52 + (chapter.hasProperty ("subtitle") ? 26 : 0) + 6;
-    y += measure (chapterText ("intro"), font (17.0f), rightPage.getWidth()) + 24;
-    // The Reading sits at the bottom of the right page, above the buttons.
-    readingArea = rightPage.withTop (rightPage.getBottom() - 132);
-
-    // Knob block: name 20, knob, value box (part of the knob), target caption 36
-    knobBlock = { rightPage.getX(), y, 170, juce::jmax (120, readingArea.getY() - 12 - y) };
-    const auto knobH = juce::jlimit (90, 170, knobBlock.getHeight() - 20 - 36);
-    knob.setBounds (knobBlock.getX() + 10, knobBlock.getY() + 20, 150, knobH);
-    textBlock = { knobBlock.getRight() + 32, knobBlock.getY(), rightPage.getRight() - knobBlock.getRight() - 32, readingArea.getY() - 12 - knobBlock.getY() };
-
-    const auto bottom = getLocalBounds().reduced (28, 24).removeFromBottom (50);
-    nextButton.setBounds (bottom.getRight() - 220, bottom.getY(), 220, 50);
-    previousButton.setBounds (nextButton.getX() - 200, bottom.getY(), 180, 50);
 }
 
 } // namespace na::vol4

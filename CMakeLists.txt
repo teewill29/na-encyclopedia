@@ -44,7 +44,25 @@ target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/FeedbackTracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/Metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/MetricsOverlay.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Style.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/BookFrame.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Controls.cpp
 )
+
+# The book's fonts (Cinzel, EB Garamond; SIL OFL), embedded. See assets/fonts/README.md.
+juce_add_binary_data(NAEncyclopediaFonts
+    HEADER_NAME NAFonts.h
+    NAMESPACE NAFonts
+    SOURCES
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Cinzel-Medium.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Cinzel-SemiBold.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/Cinzel-Bold.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/EBGaramond-Regular.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/EBGaramond-Medium.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/EBGaramond-SemiBold.ttf
+        ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/EBGaramond-Italic.ttf
+)
+target_link_libraries(NAEncyclopediaCore INTERFACE NAEncyclopediaFonts)
 target_include_directories(NAEncyclopediaCore INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaCore INTERFACE cxx_std_20)
 
