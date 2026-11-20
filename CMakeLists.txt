@@ -39,11 +39,26 @@ endif()
 add_library(NAEncyclopediaCore INTERFACE)
 target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Content.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/Metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/MetricsOverlay.cpp
 )
 target_include_directories(NAEncyclopediaCore INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaCore INTERFACE cxx_std_20)
 
+# Debug overlay with every live metric (FEEDBACK-ENGINE.md §7). On during
+# development so the owner can see it in CI builds; turn OFF for release (M8).
+option(NA_DEBUG_OVERLAY "Show the analysis debug overlay" ON)
+
 enable_testing()
+
+# Unit tests for shared/analysis (plain C++, no JUCE), run by ctest in CI
+add_executable(NAEncyclopediaAnalysisTests
+    shared/tests/AnalysisTests.cpp
+    shared/analysis/Metrics.cpp
+)
+target_include_directories(NAEncyclopediaAnalysisTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_features(NAEncyclopediaAnalysisTests PRIVATE cxx_std_20)
+add_test(NAME AnalysisTests COMMAND NAEncyclopediaAnalysisTests)
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 add_subdirectory(volumes/04-compression)

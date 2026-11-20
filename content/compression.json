@@ -14,6 +14,32 @@
     "unitDb": " dB"
   },
 
+  "debug": {
+    "title": "Analysis (debug)",
+    "none": "–",
+    "states": { "silence": "silence", "listening": "listening", "evaluating": "evaluating" },
+    "units": { "db": " dB", "lufs": " LUFS", "percent": "%", "seconds": " s" },
+    "labels": {
+      "state": "State",
+      "activeSeconds": "Active audio in window",
+      "dynamicRange": "Dynamic range (p95 − p10)",
+      "momentaryIn": "Momentary loudness, in",
+      "grNow": "Gain reduction, now",
+      "grP90": "Gain reduction, 90th percentile",
+      "onsets": "Onsets detected",
+      "frontsKept": "Fronts kept (median of last 8)",
+      "frontsKeptCount": "Onsets in that median",
+      "punchIn": "Last punch, in",
+      "punchOut": "Last punch, out",
+      "residualGr": "Residual GR before notes",
+      "ripple": "GR ripple, sustained",
+      "loudnessIn": "Short-term loudness, in",
+      "loudnessOut": "Short-term loudness, out",
+      "levelDiff": "Level difference (out − in)",
+      "dropped": "Dropped analysis blocks"
+    }
+  },
+
   "parameters": {
     "threshold": { "name": "Threshold",   "unit": " dB" },
     "ratio":     { "name": "Ratio",       "unit": ":1" },

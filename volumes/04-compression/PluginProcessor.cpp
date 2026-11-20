@@ -18,12 +18,43 @@ CompressionAudioProcessor::CompressionAudioProcessor()
     release   = parameters.getRawParameterValue (ParamID::release);
     makeup    = parameters.getRawParameterValue (ParamID::makeup);
     mix       = parameters.getRawParameterValue (ParamID::mix);
+
+    drainIn.resize (8192);
+    drainOut.resize (8192);
+    drainGr.resize (8192);
+    metrics.prepare (44100.0);
+    startTimerHz (30);
+}
+
+CompressionAudioProcessor::~CompressionAudioProcessor()
+{
+    stopTimer();
 }
 
 void CompressionAudioProcessor::prepareToPlay (double sampleRate, int)
 {
     compressor.prepare (sampleRate);
+    pendingSampleRate.store (sampleRate);
     setLatencySamples (0);
+}
+
+void CompressionAudioProcessor::timerCallback()
+{
+    // A new sample rate: re-prepare (allocates, fine here) and drop stale audio.
+    if (const auto rate = pendingSampleRate.exchange (0.0); rate > 0.0)
+    {
+        metrics.prepare (rate);
+        taps.discardAll();
+    }
+
+    float* dest[] = { drainIn.data(), drainOut.data(), drainGr.data() };
+    for (int guard = 0; guard < 64; ++guard)
+    {
+        const auto n = taps.pop (dest, drainIn.size());
+        if (n == 0)
+            break;
+        metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), (int) n);
+    }
 }
 
 void CompressionAudioProcessor::releaseResources()
@@ -83,11 +114,36 @@ void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
             buffer.clear (ch, 0, n);
 
     compressor.setSettings (readSettings());
-    compressor.process (buffer.getArrayOfWritePointers(), juce::jmin (numOut, Compressor::maxChannels), n);
 
-    const auto gr = compressor.getBlockMaxGainReductionDb();
-    if (gr > grPeakForUi.load (std::memory_order_relaxed))
-        grPeakForUi.store (gr, std::memory_order_relaxed);
+    const auto numCh = juce::jmin (numOut, Compressor::maxChannels);
+    auto* const* channels = buffer.getArrayOfWritePointers();
+    float blockMaxGr = 0.0f;
+
+    // In chunks, so the fixed-size tap buffers never need to grow.
+    for (int start = 0; start < n; start += tapChunk)
+    {
+        const auto len = juce::jmin (tapChunk, n - start);
+        float* chunk[Compressor::maxChannels] = {};
+        for (int ch = 0; ch < numCh; ++ch)
+            chunk[ch] = channels[ch] + start;
+
+        // `in` tap: mono sum before compression
+        for (int i = 0; i < len; ++i)
+            tapIn[(size_t) i] = numCh == 2 ? 0.5f * (chunk[0][i] + chunk[1][i]) : chunk[0][i];
+
+        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data());
+        blockMaxGr = juce::jmax (blockMaxGr, compressor.getBlockMaxGainReductionDb());
+
+        // `out` tap: after makeup, before Mix (the gain is linked, so in × wet gain)
+        for (int i = 0; i < len; ++i)
+            tapOut[(size_t) i] = tapIn[(size_t) i] * tapWetGain[(size_t) i];
+
+        const float* streams[] = { tapIn.data(), tapOut.data(), tapGr.data() };
+        taps.push (streams, (size_t) len); // drops (never blocks) if analysis falls behind
+    }
+
+    if (blockMaxGr > grPeakForUi.load (std::memory_order_relaxed))
+        grPeakForUi.store (blockMaxGr, std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* CompressionAudioProcessor::createEditor()

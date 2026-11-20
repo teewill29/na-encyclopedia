@@ -79,7 +79,8 @@ float Compressor::gainReductionDb (float inputDb, float thresholdDb, float r, fl
     return over > 0.0f ? slope * over : 0.0f;
 }
 
-void Compressor::process (float* const* channels, int numChannels, int numSamples, float* grOut) noexcept
+void Compressor::process (float* const* channels, int numChannels, int numSamples,
+                          float* grOut, float* wetGainOut) noexcept
 {
     numChannels = std::clamp (numChannels, 0, maxChannels);
     blockMaxGrDb = 0.0f;
@@ -109,6 +110,8 @@ void Compressor::process (float* const* channels, int numChannels, int numSample
 
         if (grOut != nullptr)
             grOut[i] = envelopeDb;
+        if (wetGainOut != nullptr)
+            wetGainOut[i] = wet;
 
         blockMaxGrDb = std::max (blockMaxGrDb, envelopeDb);
     }

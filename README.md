@@ -103,7 +103,8 @@ na-encyclopedia/
 │   ├── content/                # JSON loader, templating, goal lookup
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
-│   └── ui/                     # book frame, spine, pages, knob, meter, buttons, LookAndFeel
+│   ├── ui/                     # book frame, spine, pages, knob, meter, buttons, LookAndFeel
+│   └── tests/                  # analysis unit tests
 ├── volumes/
 │   └── 04-compression/
 │       ├── CMakeLists.txt
@@ -111,7 +112,7 @@ na-encyclopedia/
 │       ├── PluginEditor.{h,cpp}
 │       ├── Parameters.{h,cpp}
 │       ├── dsp/Compressor.{h,cpp}
-│       └── tests/CompressorTests.cpp   # DSP unit tests, run by ctest in CI
+│       └── tests/              # DSP unit tests + end-to-end processor tests (ctest in CI)
 ├── installer/
 │   ├── build-pkg.sh
 │   └── scripts/                # preinstall / postinstall

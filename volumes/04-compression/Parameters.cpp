@@ -35,8 +35,9 @@ namespace
         const auto decimals = spec.decimals;
         const auto showPlus = spec.showPlus;
 
+        // The unit is part of the value text ("-18.0 dB"), so no separate
+        // label: hosts and the generic editor would otherwise show it twice.
         auto attributes = juce::AudioParameterFloatAttributes()
-            .withLabel (unit.trim())
             .withStringFromValueFunction ([unit, decimals, showPlus] (float v, int)
             {
                 auto text = juce::String (v, decimals (v));

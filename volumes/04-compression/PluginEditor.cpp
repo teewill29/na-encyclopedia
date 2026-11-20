@@ -6,6 +6,7 @@ namespace
     constexpr int baseHeight = 760;
     constexpr int headerHeight = 90;
     constexpr int footerHeight = 120;
+    constexpr int overlayWidth = 420;
 
     const juce::Colour paper      { 0xFFF4ECDB }; // docs/UI-REFERENCE.md §3
     const juce::Colour ink        { 0xFF2A2118 };
@@ -20,11 +21,19 @@ CompressionAudioProcessorEditor::CompressionAudioProcessorEditor (CompressionAud
     : AudioProcessorEditor (&p),
       processor (p),
       generic (p),
+     #if NA_DEBUG_OVERLAY
+      overlay (p.getContent(),
+               [&p]() -> const na::analysis::Metrics& { return p.getMetrics(); },
+               [&p] { return p.getDroppedAnalysisBlocks(); }),
+     #endif
       title (p.getContent().getString ("ui.skeletonTitle")),
       grLabel (p.getContent().getString ("ui.debugGainReduction")),
       dbUnit (p.getContent().getString ("ui.unitDb"))
 {
     addAndMakeVisible (generic);
+   #if NA_DEBUG_OVERLAY
+    addAndMakeVisible (overlay);
+   #endif
     setSize (baseWidth, baseHeight);
     startTimerHz (30);
 }
@@ -79,5 +88,9 @@ void CompressionAudioProcessorEditor::resized()
     auto area = getLocalBounds().reduced (40, 0);
     area.removeFromTop (headerHeight);
     area.removeFromBottom (footerHeight);
+   #if NA_DEBUG_OVERLAY
+    overlay.setBounds (area.removeFromRight (overlayWidth));
+    area.removeFromRight (24);
+   #endif
     generic.setBounds (area);
 }

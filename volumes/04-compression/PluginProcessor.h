@@ -2,13 +2,18 @@
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "content/Content.h"
+#include "analysis/Metrics.h"
+#include "analysis/TapFifo.h"
 #include "dsp/Compressor.h"
 
-class CompressionAudioProcessor final : public juce::AudioProcessor
+#include <array>
+
+class CompressionAudioProcessor final : public juce::AudioProcessor,
+                                        private juce::Timer
 {
 public:
     CompressionAudioProcessor();
-    ~CompressionAudioProcessor() override = default;
+    ~CompressionAudioProcessor() override;
 
     void prepareToPlay (double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -38,13 +43,18 @@ public:
     void setStateInformation (const void* data, int sizeInBytes) override;
 
     const na::Content& getContent() const noexcept { return content; }
-    juce::AudioProcessorValueTreeState& getParameters() noexcept { return parameters; }
+    juce::AudioProcessorValueTreeState& getValueTree() noexcept { return parameters; }
 
     /** Peak gain reduction (dB) since the last call. Message thread only. */
     float takeGainReductionPeakDb() noexcept { return grPeakForUi.exchange (0.0f); }
 
+    /** Latest analysis (FEEDBACK-ENGINE.md §2). Message thread only. */
+    const na::analysis::Metrics& getMetrics() const noexcept { return metrics.get(); }
+    unsigned getDroppedAnalysisBlocks() const noexcept { return taps.getDroppedBlocks(); }
+
 private:
     na::vol4::CompressorSettings readSettings() const noexcept;
+    void timerCallback() override;   // drains the taps into the metrics, 30 Hz
 
     const na::Content content;  // must be built before `parameters`, which reads names from it
     juce::AudioProcessorValueTreeState parameters;
@@ -58,6 +68,16 @@ private:
 
     na::vol4::Compressor compressor;
     std::atomic<float> grPeakForUi { 0.0f };
+
+    // Analysis taps (FEEDBACK-ENGINE.md §1): in (mono), out (mono, after
+    // makeup, before Mix), gr (dB). Audio thread → FIFO → message thread.
+    static constexpr int tapChunk = 1024;
+    std::array<float, tapChunk> tapIn {}, tapOut {}, tapGr {}, tapWetGain {};
+    na::analysis::TapFifo<3> taps { 1u << 17 };   // ~2.7 s at 48 kHz
+
+    na::analysis::MetricsEngine metrics;           // message thread only
+    std::vector<float> drainIn, drainOut, drainGr; // message thread only
+    std::atomic<double> pendingSampleRate { 0.0 }; // set by prepareToPlay, applied by the timer
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressionAudioProcessor)
 };

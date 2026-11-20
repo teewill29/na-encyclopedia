@@ -42,9 +42,12 @@ public:
     void setSettings (const CompressorSettings& s);
 
     /** Processes numChannels (1 or 2) channels in place.
-        If grOut is not null it receives each sample's gain reduction in dB
-        (positive = turning down), for the analysis taps in Milestone 3. */
-    void process (float* const* channels, int numChannels, int numSamples, float* grOut = nullptr) noexcept;
+        Optional per-sample outputs for the analysis taps:
+          grOut      gain reduction in dB (positive = turning down)
+          wetGainOut gain of the compressed path incl. makeup, before Mix
+                     (so `out` = input × wetGain, see FEEDBACK-ENGINE.md §1) */
+    void process (float* const* channels, int numChannels, int numSamples,
+                  float* grOut = nullptr, float* wetGainOut = nullptr) noexcept;
 
     /** Largest gain reduction (dB) in the most recent block. */
     float getBlockMaxGainReductionDb() const noexcept { return blockMaxGrDb; }

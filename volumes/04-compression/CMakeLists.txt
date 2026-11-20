@@ -2,7 +2,7 @@
 
 # Bump on every build you hand to Logic for testing: Logic caches each plugin's
 # name and validation result per version, so a new version forces a fresh look.
-set(NA_COMPRESSION_VERSION 1.0.2)
+set(NA_COMPRESSION_VERSION 1.0.3)
 
 if(APPLE)
     set(NA_COMPRESSION_FORMATS AU VST3)
@@ -48,6 +48,7 @@ target_compile_definitions(NAEncyclopediaCompression PUBLIC
     JUCE_USE_CURL=0
     JUCE_VST3_CAN_REPLACE_VST2=0
     NA_BUILD_ID="${NA_BUILD_ID}"
+    NA_DEBUG_OVERLAY=$<BOOL:${NA_DEBUG_OVERLAY}>
 )
 
 target_link_libraries(NAEncyclopediaCompression
@@ -71,3 +72,33 @@ add_executable(NAEncyclopediaCompressionTests
 target_include_directories(NAEncyclopediaCompressionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_features(NAEncyclopediaCompressionTests PRIVATE cxx_std_20)
 add_test(NAME CompressorTests COMMAND NAEncyclopediaCompressionTests)
+
+# ── End-to-end processor tests: the real plugin code compiled into a console app ──
+juce_add_console_app(NAEncyclopediaCompressionProcessorTests PRODUCT_NAME "NAEncyclopediaCompressionProcessorTests")
+target_sources(NAEncyclopediaCompressionProcessorTests PRIVATE
+    tests/ProcessorTests.cpp
+    PluginProcessor.cpp
+    PluginEditor.cpp
+    Parameters.cpp
+    dsp/Compressor.cpp
+)
+target_include_directories(NAEncyclopediaCompressionProcessorTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(NAEncyclopediaCompressionProcessorTests PRIVATE
+    JucePlugin_Name="NA Encyclopedia IV Compression"
+    JucePlugin_VersionString="${NA_COMPRESSION_VERSION}"
+    NA_BUILD_ID="${NA_BUILD_ID}"
+    NA_DEBUG_OVERLAY=$<BOOL:${NA_DEBUG_OVERLAY}>
+    JUCE_MODAL_LOOPS_PERMITTED=1
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+)
+target_link_libraries(NAEncyclopediaCompressionProcessorTests
+    PRIVATE
+        NAEncyclopediaCore
+        NAEncyclopediaCompressionData
+        juce::juce_audio_utils
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags
+)
+add_test(NAME ProcessorTests COMMAND NAEncyclopediaCompressionProcessorTests)
