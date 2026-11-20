@@ -25,10 +25,10 @@ struct Metrics
     float currentGrDb = 0.0f;         // latest GR sample
 
     int   onsetCount = 0;             // §2.4: onsets since reset
-    float frontsKeptPct = none;       // §2.5: median of the last 8 onsets
+    float frontsKeptPct = none;       // §2.5: median of the last 8 counted onsets
     int   frontsKeptCount = 0;        //        how many onsets that median uses (0..8)
-    float lastPunchInDb = none;       //        punch of the latest counted onset, in / out
-    float lastPunchOutDb = none;
+    float lastFrontGrDb = none;       //        latest counted front: reduction applied …
+    float lastFrontTargetGrDb = none; //        … and what an instant attack would have applied
 
     float residualGrDb = none;        // §2.6: median GR in the 5 ms before the last 8 onsets
     float grRippleDb = none;          // §2.6: largest GR peak-to-peak in a sustained 20 ms span
@@ -38,9 +38,10 @@ struct Metrics
     float levelDiffDb = none;         //        out − in
 };
 
-/** Computes Metrics from three aligned streams: `in` (mono-summed input),
-    `out` (mono-summed output after makeup, before Mix) and `gr` (gain
-    reduction in dB, positive = reducing).
+/** Computes Metrics from four aligned streams: `in` (mono-summed input),
+    `out` (mono-summed output after makeup, before Mix), `gr` (gain
+    reduction in dB, positive = reducing) and `grTarget` (the reduction an
+    instant attack would apply: the static curve of the input).
 
     prepare() allocates; process() doesn't, so it is safe to call from a
     timer or analysis thread at any rate. Not for the audio thread (it does
@@ -65,10 +66,8 @@ public:
     static constexpr double onsetRiseWindowMs  = 10.0;
     static constexpr double onsetMinGapMs      = 50.0;
     static constexpr double onsetPreRollMs     = 2.0;    // detection lags the true start by ~1-2 ms
-    static constexpr double peakWindowMs       = 10.0;   // §2.5
-    static constexpr double bodyStartMs        = 30.0;
-    static constexpr double bodyEndMs          = 120.0;
-    static constexpr double minPunchDb         = 3.0;
+    static constexpr double frontWindowMs      = 10.0;   // §2.5
+    static constexpr double minFrontTargetDb   = 1.0;    // fronts the compressor barely touches don't count
     static constexpr int    onsetsForMedian    = 8;
     static constexpr double residualWindowMs   = 5.0;    // §2.6
     static constexpr double rippleSpanMs       = 20.0;
@@ -77,12 +76,16 @@ public:
     void prepare (double sampleRate);
     void reset();
 
-    void process (const float* in, const float* out, const float* gr, int numSamples) noexcept;
+    void process (const float* in, const float* out, const float* gr, const float* grTarget, int numSamples) noexcept;
 
     const Metrics& get() const noexcept { return metrics; }
 
+    /** Seconds of audio analysed since prepare()/reset(). The feedback clock:
+        "hold for 2 s" means 2 s of the track, and it pauses when audio stops. */
+    double getSecondsAnalysed() const noexcept { return (double) position / sampleRate; }
+
 private:
-    void processSample (float in, float out, float gr) noexcept;
+    void processSample (float in, float out, float gr, float grTarget) noexcept;
     void finishTick() noexcept;
     void finishHop() noexcept;
     void onOnset (int64_t at) noexcept;
@@ -123,7 +126,7 @@ private:
     int    onsetMinGap = 0, riseWindowTicks = 10;
 
     // History of the raw streams, for the per-onset measurements
-    std::vector<float> histIn, histOut, histGr;
+    std::vector<float> histIn, histOut, histGr, histTarget;
     size_t histMask = 0;
 
     // Current tick accumulators

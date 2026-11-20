@@ -65,6 +65,7 @@ void MetricsEngine::prepare (double newSampleRate)
     histIn.assign (histLen, 0.0f);
     histOut.assign (histLen, 0.0f);
     histGr.assign (histLen, 0.0f);
+    histTarget.assign (histLen, 0.0f);
     histMask = histLen - 1;
 
     const auto windowTicks = (size_t) secondsToTicks (windowSeconds);
@@ -102,6 +103,7 @@ void MetricsEngine::reset()
     std::fill (histIn.begin(), histIn.end(), 0.0f);
     std::fill (histOut.begin(), histOut.end(), 0.0f);
     std::fill (histGr.begin(), histGr.end(), 0.0f);
+    std::fill (histTarget.begin(), histTarget.end(), 0.0f);
 
     tickCount = 0;
     tickSumSq = tickSumKIn = tickSumKOut = tickSumGr = 0.0;
@@ -134,23 +136,24 @@ void MetricsEngine::reset()
     metrics = {};
 }
 
-void MetricsEngine::process (const float* in, const float* out, const float* gr, int numSamples) noexcept
+void MetricsEngine::process (const float* in, const float* out, const float* gr, const float* grTarget, int numSamples) noexcept
 {
     if (histIn.empty())
         return; // not prepared
 
     for (int i = 0; i < numSamples; ++i)
-        processSample (in[i], out[i], gr[i]);
+        processSample (in[i], out[i], gr[i], grTarget[i]);
 
     updateSummary();
 }
 
-void MetricsEngine::processSample (float in, float out, float gr) noexcept
+void MetricsEngine::processSample (float in, float out, float gr, float grTarget) noexcept
 {
     const auto h = (size_t) position & histMask;
     histIn[h] = in;
     histOut[h] = out;
     histGr[h] = gr;
+    histTarget[h] = grTarget;
     metrics.currentGrDb = gr;
 
     // Onset envelope follower on `in` (§2.4)
@@ -167,8 +170,8 @@ void MetricsEngine::processSample (float in, float out, float gr) noexcept
         && position - lastOnset >= onsetMinGap)
         onOnset (position);
 
-    // Finish any onsets whose body window has passed (§2.5)
-    const int64_t needed = msToSamples (bodyEndMs);
+    // Finish any onsets whose front window has passed (§2.5)
+    const int64_t needed = msToSamples (frontWindowMs);
     while (numPending > 0 && position - pending[0] >= needed)
     {
         completeFront (pending[0]);
@@ -297,39 +300,30 @@ void MetricsEngine::onOnset (int64_t at) noexcept
 
 void MetricsEngine::completeFront (int64_t onset) noexcept
 {
-    // §2.5: punch = peak (first 10 ms) − body RMS (30-120 ms), on in and out
+    // §2.5 fronts kept: of the reduction an instant attack would have added
+    // to this note's front, how much did the attack let through?
+    //   frontsKept = 100 × (1 − added / wouldAdd), over the first 10 ms,
+    // both measured from the reduction already there when the note starts
+    // (that leftover is Release's business, Chapter IV). Fronts the
+    // compressor would barely touch say nothing about attack: skipped.
     const int64_t start = onset - msToSamples (onsetPreRollMs);
-    const int64_t peakEnd = onset + msToSamples (peakWindowMs);
-    const int64_t bodyBegin = onset + msToSamples (bodyStartMs);
-    const int64_t bodyEnd = onset + msToSamples (bodyEndMs);
+    const int64_t end = onset + msToSamples (frontWindowMs);
     if (start < 0) return;
 
-    double peakIn = 0.0, peakOut = 0.0;
-    for (int64_t p = start; p < peakEnd; ++p)
+    const float before = histGr[(size_t) start & histMask];
+    float applied = before, wouldBe = before;
+    for (int64_t p = start; p < end; ++p)
     {
-        peakIn  = std::max (peakIn,  (double) std::abs (histIn[(size_t) p & histMask]));
-        peakOut = std::max (peakOut, (double) std::abs (histOut[(size_t) p & histMask]));
+        applied = std::max (applied, histGr[(size_t) p & histMask]);
+        wouldBe = std::max (wouldBe, histTarget[(size_t) p & histMask]);
     }
-    double sqIn = 0.0, sqOut = 0.0;
-    for (int64_t p = bodyBegin; p < bodyEnd; ++p)
-    {
-        const double a = histIn[(size_t) p & histMask], b = histOut[(size_t) p & histMask];
-        sqIn += a * a;
-        sqOut += b * b;
-    }
-    const double len = (double) (bodyEnd - bodyBegin);
-    // Body RMS in dB = 10·log10(mean square).
-    const float pIn  = toDb (peakIn)  - powerToDb (sqIn / len);
-    const float pOut = toDb (peakOut) - powerToDb (sqOut / len);
 
-    // Note for M5 tuning: a steady sine already measures 3.01 dB here (its own
-    // peak-to-RMS), right at the 3 dB "no real hit" limit in the spec.
-    if (pIn < (float) minPunchDb)
-        return; // no real hit to protect
+    if (wouldBe - before < (float) minFrontTargetDb)
+        return;
 
-    metrics.lastPunchInDb = pIn;
-    metrics.lastPunchOutDb = pOut;
-    frontsRing.push (std::clamp (pOut / pIn * 100.0f, 0.0f, 110.0f));
+    metrics.lastFrontGrDb = applied;
+    metrics.lastFrontTargetGrDb = wouldBe;
+    frontsRing.push (std::clamp (100.0f * (1.0f - (applied - before) / (wouldBe - before)), 0.0f, 100.0f));
 }
 
 void MetricsEngine::updateSummary() noexcept

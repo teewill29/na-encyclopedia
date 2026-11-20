@@ -41,6 +41,7 @@ target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Content.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Template.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/Session.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/FeedbackTracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/Metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/MetricsOverlay.cpp
 )
@@ -61,6 +62,15 @@ add_executable(NAEncyclopediaAnalysisTests
 target_include_directories(NAEncyclopediaAnalysisTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaAnalysisTests PRIVATE cxx_std_20)
 add_test(NAME AnalysisTests COMMAND NAEncyclopediaAnalysisTests)
+
+# Unit tests for the feedback state machine (plain C++)
+add_executable(NAEncyclopediaFeedbackTests
+    shared/tests/FeedbackTests.cpp
+    shared/chapters/FeedbackTracker.cpp
+)
+target_include_directories(NAEncyclopediaFeedbackTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_features(NAEncyclopediaFeedbackTests PRIVATE cxx_std_20)
+add_test(NAME FeedbackTests COMMAND NAEncyclopediaFeedbackTests)
 
 # Unit tests for shared/content and shared/chapters (need JUCE core + data structures)
 juce_add_console_app(NAEncyclopediaContentTests PRODUCT_NAME "NAEncyclopediaContentTests")

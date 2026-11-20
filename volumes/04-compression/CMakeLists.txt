@@ -2,7 +2,7 @@
 
 # Bump on every build you hand to Logic for testing: Logic caches each plugin's
 # name and validation result per version, so a new version forces a fresh look.
-set(NA_COMPRESSION_VERSION 1.0.4)
+set(NA_COMPRESSION_VERSION 1.0.5)
 
 if(APPLE)
     set(NA_COMPRESSION_FORMATS AU VST3)
@@ -33,6 +33,7 @@ target_sources(NAEncyclopediaCompression PRIVATE
     PluginEditor.cpp
     Parameters.cpp
     Chapters.cpp
+    Feedback.cpp
     BookViews.cpp
     dsp/Compressor.cpp
 )
@@ -83,6 +84,7 @@ target_sources(NAEncyclopediaCompressionProcessorTests PRIVATE
     PluginEditor.cpp
     Parameters.cpp
     Chapters.cpp
+    Feedback.cpp
     BookViews.cpp
     dsp/Compressor.cpp
 )
@@ -106,3 +108,23 @@ target_link_libraries(NAEncyclopediaCompressionProcessorTests
         juce::juce_recommended_warning_flags
 )
 add_test(NAME ProcessorTests COMMAND NAEncyclopediaCompressionProcessorTests)
+
+# ── Tuning report (not shipped): sweeps each chapter's knob over a real recording ──
+juce_add_console_app(NAEncyclopediaTuningReport PRODUCT_NAME "NAEncyclopediaTuningReport")
+target_sources(NAEncyclopediaTuningReport PRIVATE
+    tools/TuningReport.cpp
+    Feedback.cpp
+    dsp/Compressor.cpp
+)
+target_include_directories(NAEncyclopediaTuningReport PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(NAEncyclopediaTuningReport PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(NAEncyclopediaTuningReport
+    PRIVATE
+        NAEncyclopediaCore
+        NAEncyclopediaCompressionData
+        juce::juce_audio_formats
+        juce::juce_gui_basics
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags
+)

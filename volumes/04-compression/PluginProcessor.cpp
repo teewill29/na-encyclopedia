@@ -2,6 +2,7 @@
 #include "PluginEditor.h"
 #include "Parameters.h"
 #include "Chapters.h"
+#include "Feedback.h"
 #include "BinaryData.h"
 
 using namespace na::vol4;
@@ -23,6 +24,7 @@ CompressionAudioProcessor::CompressionAudioProcessor()
     drainIn.resize (8192);
     drainOut.resize (8192);
     drainGr.resize (8192);
+    drainTarget.resize (8192);
     metrics.prepare (44100.0);
     startTimerHz (30);
 }
@@ -47,16 +49,58 @@ void CompressionAudioProcessor::timerCallback()
     {
         metrics.prepare (rate);
         taps.discardAll();
+        feedbackChapter = {};   // the audio clock restarted: start the chapter's reading over
     }
 
-    float* dest[] = { drainIn.data(), drainOut.data(), drainGr.data() };
+    float* dest[] = { drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data() };
     for (int guard = 0; guard < 64; ++guard)
     {
         const auto n = taps.pop (dest, drainIn.size());
         if (n == 0)
             break;
-        metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), (int) n);
+        metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data(), (int) n);
     }
+
+    updateFeedback();
+}
+
+void CompressionAudioProcessor::updateFeedback()
+{
+    if (session.isOnTitlePage())
+    {
+        feedbackChapter = {};
+        return;
+    }
+
+    const auto chapter = session.getCurrentChapterId();
+    if (chapter != feedbackChapter)
+    {
+        feedback.reset();
+        feedbackChapter = chapter;
+        lastKnobValue = std::numeric_limits<float>::quiet_NaN();
+    }
+
+    // Did the chapter's own knob move since the last tick?
+    bool knobMoved = false;
+    if (const auto* rule = na::vol4::ruleFor (chapter); rule != nullptr && rule->paramId != nullptr)
+    {
+        const auto v = parameters.getRawParameterValue (rule->paramId)->load();
+        knobMoved = ! std::isnan (lastKnobValue) && std::abs (v - lastKnobValue) > 1.0e-4f;
+        lastKnobValue = v;
+    }
+
+    using Phase = na::FeedbackTracker::Phase;
+    const auto& m = metrics.get();
+    const auto phase = m.state == na::analysis::Metrics::State::silence   ? Phase::silence
+                     : m.state == na::analysis::Metrics::State::listening ? Phase::listening
+                                                                          : Phase::evaluating;
+    const auto zone = na::vol4::Feedback::zoneFor (chapter, session.getInstrument(), session.getGoal(), m, readSettings());
+
+    feedback.update (metrics.getSecondsAnalysed(), phase, zone, knobMoved,
+                     na::vol4::Feedback::doneZonesFor (chapter));
+
+    if (feedback.isDone() && ! session.isDone (chapter))
+        session.setDone (chapter, true);
 }
 
 void CompressionAudioProcessor::releaseResources()
@@ -134,14 +178,14 @@ void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         for (int i = 0; i < len; ++i)
             tapIn[(size_t) i] = numCh == 2 ? 0.5f * (chunk[0][i] + chunk[1][i]) : chunk[0][i];
 
-        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data());
+        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data(), tapTarget.data());
         blockMaxGr = juce::jmax (blockMaxGr, compressor.getBlockMaxGainReductionDb());
 
         // `out` tap: after makeup, before Mix (the gain is linked, so in × wet gain)
         for (int i = 0; i < len; ++i)
             tapOut[(size_t) i] = tapIn[(size_t) i] * tapWetGain[(size_t) i];
 
-        const float* streams[] = { tapIn.data(), tapOut.data(), tapGr.data() };
+        const float* streams[] = { tapIn.data(), tapOut.data(), tapGr.data(), tapTarget.data() };
         taps.push (streams, (size_t) len); // drops (never blocks) if analysis falls behind
     }
 

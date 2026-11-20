@@ -4,6 +4,7 @@
 
 #include "PluginProcessor.h"
 #include "content/Template.h"
+#include "Feedback.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -256,6 +257,109 @@ int main()
         check (sessions == 1, "one session in the saved state");
     });
 
+
+    test ("feedback zones follow the spec for every chapter", [] {
+        CompressionAudioProcessor p;
+        const auto& c = p.getContent();
+        const auto vox = c.findInstrument ("leadVocal"), kick = c.findInstrument ("kick");
+        const auto punch = c.findGoal ("leadVocal", "punch");   // GR 3-6, fronts 70-90, release 50-100, residual <= 1
+        na::analysis::Metrics m;
+        na::vol4::CompressorSettings s;
+        using na::vol4::Feedback::zoneFor;
+        auto zone = [&] (const char* ch, const juce::var& inst = {}) { return zoneFor (ch, inst.isVoid() ? vox : inst, punch, m, s); };
+
+        m.dynamicRangeDb = 3.0f;  check (zone ("goal") == "notNeeded", "vocal, 3 dB of movement: not needed (min 6)");
+        m.dynamicRangeDb = 9.0f;  check (zone ("goal") == "needed", "9 dB: needed");
+        check (zone ("goal", kick) == "skipped", "kick has no need check");
+        m.dynamicRangeDb = na::analysis::Metrics::none; check (zone ("goal").empty(), "no reading yet");
+
+        m.grP90Db = 1.0f; check (zone ("ratioThreshold") == "low", "GR 1 dB: not enough");
+        m.grP90Db = 4.0f; check (zone ("ratioThreshold") == "onTarget", "GR 4 dB: on target");
+        m.grP90Db = 9.0f; check (zone ("ratioThreshold") == "high", "GR 9 dB: too much");
+
+        // Chapter III is judged by the knob against attackMs (15-30 ms here)
+        s.attackMs = 5.0f;  check (zone ("attack") == "low", "attack 5 ms: too fast");
+        s.attackMs = 20.0f; check (zone ("attack") == "onTarget", "attack 20 ms");
+        s.attackMs = 60.0f; check (zone ("attack") == "high", "attack 60 ms: too slow");
+
+        s.releaseMs = 70.0f; m.residualGrDb = 0.5f; m.grRippleDb = 1.0f;
+        check (zone ("release") == "onTarget", "release 70 ms, recovered, smooth");
+        m.residualGrDb = 2.5f; check (zone ("release") == "tooSlow", "2.5 dB left over: too slow");
+        m.residualGrDb = 0.5f; s.releaseMs = 300.0f; check (zone ("release") == "tooSlow", "knob above the range: too slow");
+        s.releaseMs = 30.0f; check (zone ("release") == "tooFast", "knob below the range: too fast");
+        s.releaseMs = 70.0f; m.grRippleDb = 4.0f; check (zone ("release") == "tooFast", "4 dB ripple: too fast");
+
+        m.levelDiffDb = 2.0f;  check (zone ("level") == "high", "+2 dB: too loud");
+        m.levelDiffDb = -0.5f; check (zone ("level") == "onTarget", "-0.5 dB: matched");
+        m.levelDiffDb = -3.0f; check (zone ("level") == "low", "-3 dB: too quiet");
+
+        const auto smash = c.findGoal ("drumBus", "parallelSmash");   // mix 20-40
+        s.mixPct = 10.0f; check (zoneFor ("blend", {}, smash, m, s) == "low", "mix 10%");
+        s.mixPct = 30.0f; check (zoneFor ("blend", {}, smash, m, s) == "onTarget", "mix 30%");
+    });
+
+    test ("every zone has a status label and a message in the content file", [] {
+        CompressionAudioProcessor p;
+        const auto& c = p.getContent();
+        const std::pair<const char*, const char*> zones[] = {
+            { "goal", "needed" }, { "goal", "notNeeded" }, { "goal", "skipped" },
+            { "ratioThreshold", "low" }, { "ratioThreshold", "high" }, { "ratioThreshold", "onTarget" },
+            { "attack", "low" }, { "attack", "high" }, { "attack", "onTarget" },
+            { "release", "tooFast" }, { "release", "tooSlow" }, { "release", "onTarget" },
+            { "level", "low" }, { "level", "high" }, { "level", "onTarget" },
+            { "blend", "low" }, { "blend", "high" }, { "blend", "onTarget" } };
+        for (const auto& [chapter, zone] : zones)
+        {
+            const auto key = na::vol4::Feedback::messageGroupFor (chapter) + "." + zone;
+            check (c.getString ("messages." + key).isNotEmpty(), ("message " + key).toStdString());
+            check (c.getString ("book.reading.status." + key).isNotEmpty(), ("status label " + key).toStdString());
+            check (na::vol4::Feedback::toneFor (chapter, zone) != na::vol4::Feedback::Tone::neutral, ("tone " + key).toStdString());
+        }
+        check (c.getString ("messages.silence").isNotEmpty() && c.getString ("book.reading.status.listening").isNotEmpty(), "silence/listening");
+    });
+
+    test ("live: fronts kept rises as attack slows", [] {
+        float kept[3] = {};
+        const float attacks[3] = { 0.3f, 5.0f, 50.0f };
+        for (int k = 0; k < 3; ++k)
+        {
+            CompressionAudioProcessor p;
+            p.setPlayConfigDetails (2, 2, sr, block);
+            p.prepareToPlay (sr, block);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+            setParam (p, "threshold", -24.0f);
+            setParam (p, "attack", attacks[k]);
+            int64_t t = 0;
+            play (p, 4.0, 2, t);
+            kept[k] = p.getMetrics().frontsKeptPct;
+            p.releaseResources();
+        }
+        check (kept[0] < 40.0f, "0.3 ms catches most of the front: " + std::to_string (kept[0]));
+        check (kept[0] < kept[1] && kept[1] < kept[2], "monotonic: " + std::to_string (kept[0]) + " < " + std::to_string (kept[1]) + " < " + std::to_string (kept[2]));
+        check (kept[2] > 85.0f, "50 ms lets most of it through: " + std::to_string (kept[2]));
+    });
+
+    test ("live: a chapter earns its check mark with audio playing", [] {
+        CompressionAudioProcessor p;
+        p.setPlayConfigDetails (2, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+        p.beginBook ("leadVocal", "punch");
+        p.openChapter ("level");          // threshold 0 dB, makeup 0: output matches input
+        int64_t t = 0;
+        play (p, 3.0, 2, t);
+        check (! p.getSession().isDone ("level"), "not after only 3 s (2 s listening + 2 s hold)");
+        play (p, 3.0, 2, t);
+        check (p.getFeedback().zone == "onTarget", "zone onTarget, got '" + p.getFeedback().zone + "'");
+        check (p.getSession().isDone ("level"), "check mark");
+
+        setParam (p, "makeup", 6.0f);     // now too loud
+        play (p, 5.0, 2, t);
+        check (p.getFeedback().zone == "high", "too loud after +6 dB makeup, got '" + p.getFeedback().zone + "'");
+        check (p.getSession().isDone ("level"), "the check mark stays");
+        p.releaseResources();
+    });
+
     if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
     {
         auto snap = [&dir] (juce::Component& c, const char* name)
@@ -277,8 +381,15 @@ int main()
         play (p, 3.0, 2, t);
         snap (*editor, "2-chapter-1.png");
         p.openChapter ("ratioThreshold");
+        setParam (p, "threshold", -24.0f);
+        play (p, 4.0, 2, t);
+        snap (*editor, "3a-chapter-2.png");
         p.openChapter ("attack");
+        play (p, 4.0, 2, t);
         snap (*editor, "3-chapter-3.png");
+        p.openChapter ("release");
+        play (p, 4.0, 2, t);
+        snap (*editor, "3b-chapter-4.png");
         p.beginBook ("electricDistorted", "lightTouch");
         p.getSession().showTitlePage();
         snap (*editor, "4-title-lesson.png");

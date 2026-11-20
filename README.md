@@ -113,6 +113,8 @@ na-encyclopedia/
 │       ├── Parameters.{h,cpp}
 │       ├── Chapters.{h,cpp}    # per-chapter knob, target, start values, Mix forcing
 │       ├── BookViews.{h,cpp}   # Title Page + chapter page (plain, until M6)
+│       ├── Feedback.{h,cpp}    # zones, status colours and meters per chapter
+│       ├── tools/TuningReport.cpp  # sweeps each chapter's knob over a real recording
 │       ├── dsp/Compressor.{h,cpp}
 │       └── tests/              # DSP unit tests + end-to-end processor tests (ctest in CI)
 ├── installer/

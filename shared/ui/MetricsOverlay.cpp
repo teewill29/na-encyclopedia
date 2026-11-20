@@ -34,7 +34,8 @@ juce::String MetricsOverlay::number (float v, int decimals, const char* unitKey)
 {
     if (std::isnan (v))
         return content.getString ("debug.none");
-    return juce::String (v, decimals) + content.getString (juce::String ("debug.units.") + unitKey);
+    // Note: juce::String (v, 0) means "default precision", not "no decimals".
+    return (decimals > 0 ? juce::String (v, decimals) : juce::String (juce::roundToInt (v))) + content.getString (juce::String ("debug.units.") + unitKey);
 }
 
 void MetricsOverlay::paint (juce::Graphics& g)
@@ -54,8 +55,8 @@ void MetricsOverlay::paint (juce::Graphics& g)
         { label ("onsets"),          juce::String (m.onsetCount) },
         { label ("frontsKept"),      number (m.frontsKeptPct, 0, "percent") },
         { label ("frontsKeptCount"), juce::String (m.frontsKeptCount) },
-        { label ("punchIn"),         number (m.lastPunchInDb, 1, "db") },
-        { label ("punchOut"),        number (m.lastPunchOutDb, 1, "db") },
+        { label ("frontGr"),         number (m.lastFrontGrDb, 1, "db") },
+        { label ("frontTargetGr"),   number (m.lastFrontTargetGrDb, 1, "db") },
         { label ("residualGr"),      number (m.residualGrDb, 1, "db") },
         { label ("ripple"),          number (m.grRippleDb, 1, "db") },
         { label ("loudnessIn"),      number (m.loudnessInLufs, 1, "lufs") },

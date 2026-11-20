@@ -1,5 +1,6 @@
 #include "BookViews.h"
 #include "Chapters.h"
+#include "Feedback.h"
 #include "content/Template.h"
 
 #include <cmath>
@@ -19,6 +20,10 @@ namespace
     const juce::Colour inkMuted   { 0xFF5E4E3B };
     const juce::Colour labelInk   { 0xFF6B5A45 };
     const juce::Colour good       { 0xFF2F5E3A };
+    const juce::Colour warnLow    { 0xFF9A2E1F };
+    const juce::Colour warnHigh   { 0xFF8A5410 };
+    const juce::Colour paperPanel { 0xFFEFE5CF };
+    const juce::Colour meterTrack { 0xFFDCCFB3 };
     const juce::Colour cloth      { 0xFF213B2F };
     const juce::Colour gold       { 0xFFCDAE5E };
 
@@ -297,7 +302,7 @@ ChapterView::ChapterView (CompressionAudioProcessor& p)
     knob.setColour (juce::Slider::thumbColourId, gold);
     knob.setColour (juce::Slider::textBoxTextColourId, ink);
     knob.setColour (juce::Slider::textBoxOutlineColourId, juce::Colours::transparentBlack);
-    knob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 140, 30);
+    knob.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 140, 26);
     addChildComponent (knob);
 
     startTimerHz (10); // live values: dynamic range, "set so far"
@@ -346,18 +351,23 @@ void ChapterView::refresh()
     for (auto* row : rows)
         row->setStatus (row->chapterId == current, session.isDone (row->chapterId));
 
-    // The chapter's knob
-    knobAttachment.reset();
+    // The chapter's knob (rebuilt only when the chapter changes, so a refresh
+    // for a new check mark doesn't interrupt a drag)
     const auto* chapterRule = ruleFor (current);
-    knob.setVisible (chapterRule != nullptr && chapterRule->paramId != nullptr);
+    if (current != attachedChapter)
+    {
+        attachedChapter = current;
+        knobAttachment.reset();
+        knob.setVisible (chapterRule != nullptr && chapterRule->paramId != nullptr);
+        if (knob.isVisible())
+            knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+                processor.getValueTree(), chapterRule->paramId, knob);
+    }
     knobName = {};
     targetCaption = {};
     if (knob.isVisible())
     {
-        knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
-            processor.getValueTree(), chapterRule->paramId, knob);
         knobName = content.getString (juce::String ("parameters.") + chapterRule->paramId + ".name").toUpperCase();
-
         if (chapterRule->targetKey != nullptr && goal[chapterRule->targetKey].isObject())
         {
             const auto range = goal[chapterRule->targetKey];
@@ -466,14 +476,109 @@ void ChapterView::paint (juce::Graphics& g)
     {
         if (body.isEmpty()) return;
         g.setColour (labelInk); g.setFont (font (12.0f, true));
-        g.drawText (text (eyebrowKey), instructions.removeFromTop (20), juce::Justification::centredLeft);
-        instructions.removeFromTop (paragraph (g, body, instructions, font (16.5f), ink) + 16);
+        g.drawText (text (eyebrowKey), instructions.removeFromTop (18), juce::Justification::centredLeft);
+        instructions.removeFromTop (paragraph (g, body, instructions, font (15.5f), ink) + 10);
     };
     const bool fromSlow = goal["attackMs"]["approach"].toString() == "fromSlow";
     section ("doThis", chapter.hasProperty ("doThis") ? chapterText ("doThis")
                        : chapterText (fromSlow ? "doThisFromSlow" : "doThisFromFast"));
     section ("listenFor", chapterText ("listenFor"));
     section ("tryThis", chapterText ("tryThis"));
+
+    paintReading (g, readingArea);
+}
+
+void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
+{
+    using Phase = na::FeedbackTracker::Phase;
+    using Tone = Feedback::Tone;
+
+    const auto& fb = processor.getFeedback();
+    const auto chapterId = chapter["id"].toString();
+    const auto group = Feedback::messageGroupFor (chapterId);
+
+    juce::String statusKey, messageKey;
+    Tone tone = Tone::neutral;
+    if (fb.phase == Phase::silence)
+        statusKey = "silence", messageKey = "silence";
+    else if (fb.phase == Phase::listening || fb.zone.empty())
+        statusKey = "listening", messageKey = "listening";
+    else
+    {
+        statusKey = group + "." + juce::String (fb.zone);
+        messageKey = statusKey;
+        tone = Feedback::toneFor (chapterId, fb.zone);
+    }
+    const auto toneColour = tone == Tone::good ? good : tone == Tone::tooMuch ? warnLow : tone == Tone::tooLittle ? warnHigh : inkMuted;
+    const float alpha = fb.dimmed ? 0.45f : 1.0f;
+
+    g.setColour (paperPanel);
+    g.fillRoundedRectangle (area.toFloat(), 6.0f);
+    g.setColour (rule);
+    g.drawRoundedRectangle (area.toFloat().reduced (0.5f), 6.0f, 1.0f);
+
+    auto inner = area.reduced (16, 10);
+    auto header = inner.removeFromTop (18);
+    g.setColour (labelInk); g.setFont (font (12.0f, true));
+    g.drawText (content.getString ("book.reading.title"), header, juce::Justification::centredLeft);
+    g.setColour (inkMuted); g.setFont (font (13.0f, false, true));
+    g.drawText (content.getString ("book.reading.live"), header.withTrimmedRight (0), juce::Justification::centredRight);
+    const auto liveW = juce::GlyphArrangement::getStringWidthInt (font (13.0f, false, true), content.getString ("book.reading.live"));
+    g.setColour (fb.phase == Phase::silence ? inkMuted.withAlpha (0.4f) : good);
+    g.fillEllipse ((float) (header.getRight() - liveW - 14), (float) header.getCentreY() - 4.0f, 8.0f, 8.0f);
+    inner.removeFromTop (6);
+
+    // Status: dot + label (in words) + coaching message
+    auto status = inner.removeFromTop (48);
+    g.setColour (toneColour.withMultipliedAlpha (alpha));
+    g.fillEllipse ((float) status.getX(), (float) status.getY() + 5.0f, 12.0f, 12.0f);
+    status.removeFromLeft (20);
+    g.setFont (font (18.0f, true));
+    g.drawText (content.getString ("book.reading.status." + statusKey), status.removeFromLeft (190).withHeight (22), juce::Justification::centredLeft);
+    paragraph (g, content.getString ("messages." + messageKey), status, font (15.0f), ink.withMultipliedAlpha (alpha));
+
+    // Meters, side by side
+    const auto meters = Feedback::metersFor (chapterId, goal, processor.getMetrics(), processor.getSettings());
+    if (meters.empty()) return;
+    inner.removeFromTop (4);
+    const int gap = 24;
+    const int w = (inner.getWidth() - gap * ((int) meters.size() - 1)) / (int) meters.size();
+    for (size_t i = 0; i < meters.size(); ++i)
+    {
+        const auto& m = meters[i];
+        auto r = juce::Rectangle<int> (inner.getX() + (int) i * (w + gap), inner.getY(), w, 34);
+        auto labelRow = r.removeFromTop (18);
+        g.setColour (inkSoft); g.setFont (font (13.0f));
+        g.drawText (content.getString (juce::String ("book.reading.meters.") + m.labelKey), labelRow, juce::Justification::centredLeft);
+        g.setColour (ink);
+        g.drawText (std::isnan (m.value) ? content.getString ("debug.none")
+                                         : (m.decimals > 0 ? juce::String (m.value, m.decimals) : juce::String (juce::roundToInt (m.value))) + content.getString (juce::String ("debug.units.") + m.unitKey),
+                    labelRow, juce::Justification::centredRight);
+
+        auto track = r.removeFromTop (12).toFloat();
+        const auto toX = [&] (float v) { return track.getX() + track.getWidth() * juce::jlimit (0.0f, 1.0f, (v - m.rangeMin) / (m.rangeMax - m.rangeMin)); };
+        g.setColour (meterTrack);
+        g.fillRoundedRectangle (track, 6.0f);
+        if (! std::isnan (m.targetMin))
+        {
+            const auto zone = juce::Rectangle<float>::leftTopRightBottom (toX (m.targetMin), track.getY(), toX (m.targetMax), track.getBottom());
+            g.setColour (good.withAlpha (0.22f));
+            g.fillRect (zone);
+            g.setColour (good);
+            g.fillRect (zone.withWidth (1.0f));
+            g.fillRect (zone.withX (zone.getRight() - 1.0f).withWidth (1.0f));
+        }
+        if (! std::isnan (m.value))
+        {
+            const auto zeroX = toX (juce::jmax (m.rangeMin, 0.0f));
+            const auto valueX = toX (m.value);
+            const auto fill = juce::Rectangle<float>::leftTopRightBottom (juce::jmin (zeroX, valueX), track.getY() + 3.0f,
+                                                                        juce::jmax (zeroX, valueX), track.getBottom() - 3.0f);
+            // Single-meter chapters colour the fill by status; the plain GR meter stays neutral.
+            g.setColour ((m.showsStatus ? toneColour : inkMuted).withMultipliedAlpha (alpha));
+            g.fillRoundedRectangle (fill.withWidth (juce::jmax (2.0f, fill.getWidth())), 3.0f);
+        }
+    }
 }
 
 void ChapterView::resized()
@@ -481,7 +586,7 @@ void ChapterView::resized()
     auto bounds = getLocalBounds().reduced (28, 24);
     leftPage = bounds.removeFromLeft (330);
     bounds.removeFromLeft (40);
-    rightPage = bounds.withTrimmedBottom (70);
+    rightPage = bounds.withTrimmedBottom (62);
 
     changeButton.setBounds (leftPage.getRight() - 84, leftPage.getY() + 26, 84, 30);
     for (int i = 0; i < rows.size(); ++i)
@@ -491,9 +596,14 @@ void ChapterView::resized()
     // Matches paint(): eyebrow 24, title 52, subtitle 26, gap 6, intro, gap 24
     int y = rightPage.getY() + 24 + 52 + (chapter.hasProperty ("subtitle") ? 26 : 0) + 6;
     y += measure (chapterText ("intro"), font (17.0f), rightPage.getWidth()) + 24;
-    knobBlock = { rightPage.getX(), y, 170, 260 };
-    knob.setBounds (knobBlock.getX() + 10, knobBlock.getY() + 22, 150, 180);
-    textBlock = { knobBlock.getRight() + 32, knobBlock.getY(), rightPage.getRight() - knobBlock.getRight() - 32, rightPage.getBottom() - knobBlock.getY() };
+    // The Reading sits at the bottom of the right page, above the buttons.
+    readingArea = rightPage.withTop (rightPage.getBottom() - 132);
+
+    // Knob block: name 20, knob, value box (part of the knob), target caption 36
+    knobBlock = { rightPage.getX(), y, 170, juce::jmax (120, readingArea.getY() - 12 - y) };
+    const auto knobH = juce::jlimit (90, 170, knobBlock.getHeight() - 20 - 36);
+    knob.setBounds (knobBlock.getX() + 10, knobBlock.getY() + 20, 150, knobH);
+    textBlock = { knobBlock.getRight() + 32, knobBlock.getY(), rightPage.getRight() - knobBlock.getRight() - 32, readingArea.getY() - 12 - knobBlock.getY() };
 
     const auto bottom = getLocalBounds().reduced (28, 24).removeFromBottom (50);
     nextButton.setBounds (bottom.getRight() - 220, bottom.getY(), 220, 50);

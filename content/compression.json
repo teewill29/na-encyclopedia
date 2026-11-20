@@ -41,7 +41,29 @@
       "dynamicRangeWaiting": "Play the track to measure it",
       "debugToggle": "Debug"
     },
-    "units": { "attackMs": " ms", "releaseMs": " ms", "mixPct": "%" }
+    "units": { "attackMs": " ms", "releaseMs": " ms", "mixPct": "%" },
+    "reading": {
+      "title": "THE READING",
+      "live": "Listening live",
+      "status": {
+        "silence": "Waiting for audio",
+        "listening": "Listening…",
+        "needCheck": { "needed": "Worth compressing", "notNeeded": "Already fairly even", "skipped": "Ready to go" },
+        "ratioThreshold": { "low": "Not enough", "high": "Too much", "onTarget": "Right on target" },
+        "attack": { "low": "Too fast", "high": "Too slow", "onTarget": "Right on target" },
+        "release": { "tooFast": "Too fast", "tooSlow": "Too slow", "onTarget": "Right on target" },
+        "level": { "high": "Too loud", "low": "Too quiet", "onTarget": "Levels match" },
+        "blend": { "low": "Too little", "high": "Too much", "onTarget": "Right on target" }
+      },
+      "meters": {
+        "grNow": "Gain reduction",
+        "grLoud": "Gain reduction on the loud parts",
+        "frontsKept": "Fronts kept",
+        "recovery": "Left over before the next note",
+        "levelDiff": "Output vs original",
+        "mix": "Mix"
+      }
+    }
   },
 
   "debug": {
@@ -59,8 +81,8 @@
       "onsets": "Onsets detected",
       "frontsKept": "Fronts kept (median of last 8)",
       "frontsKeptCount": "Onsets in that median",
-      "punchIn": "Last punch, in",
-      "punchOut": "Last punch, out",
+      "frontGr": "Last front: reduction applied",
+      "frontTargetGr": "Last front: instant attack would apply",
       "residualGr": "Residual GR before notes",
       "ripple": "GR ripple, sustained",
       "loudnessIn": "Short-term loudness, in",
@@ -139,7 +161,8 @@
     "silence": "Nothing is coming in. Press play on a section where this track is playing.",
     "needCheck": {
       "needed": "This track jumps around enough to benefit. Let's set it up.",
-      "notNeeded": "This track is already pretty even. Light settings or no compression at all may sound best. You can still continue."
+      "notNeeded": "This track is already pretty even. Light settings or no compression at all may sound best. You can still continue.",
+      "skipped": "Drums and buses almost always benefit from some control. Let's set it up."
     },
     "ratioThreshold": {
       "low": "Not catching enough yet. Lower the threshold until the meter sits in the zone on the loud parts.",

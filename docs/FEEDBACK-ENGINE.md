@@ -15,7 +15,9 @@ The audio thread writes four streams into lock-free FIFOs (no allocation, no loc
 | `in` | Input, mono-summed |
 | `out` | Output after makeup, before Mix |
 | `gr` | Gain reduction per sample, in dB (positive = reducing) |
-| `onset` | Onset flags from the detector in §2.4 |
+| `grTarget` | The reduction an instant attack would apply right now (the static curve), in dB. Used by §2.5 |
+
+Onsets (§2.4) are detected on the analysis side from `in`, not on the audio thread: the taps are sample-aligned, so the result is the same and the audio thread does less.
 
 An analysis thread (or a 30 Hz `juce::Timer` on the message thread if that's fast enough) drains the FIFOs and updates the metrics. Use a rolling **analysis window of 4 seconds** unless noted.
 
@@ -27,7 +29,8 @@ Everything ignores audio below **−50 dBFS short-term RMS (300 ms)**. If more t
 ### 2.2 Dynamic range (Chapter I need check)
 - Compute momentary loudness (400 ms windows, K-weighted, 100 ms hop) on `in`.
 - Range = 95th percentile minus 10th percentile, active windows only.
-- If `needCheckMinRangeDb` is `null`, skip the check (drums, buses).
+- If `needCheckMinRangeDb` is `null`, skip the check (drums, buses) and show `needCheck.skipped`.
+- Chapter I is complete when any of `needed`, `notNeeded` or `skipped` has held for 2 s.
 - If range < `needCheckMinRangeDb`, show `needCheck.notNeeded`. Otherwise show `needCheck.needed`. The user can continue either way.
 
 ### 2.3 Gain reduction on loud parts (Chapter II)
@@ -42,22 +45,28 @@ Needed for Chapters III and IV.
 - Tune per instrument family later if needed (drums vs sustained sources).
 
 ### 2.5 Fronts kept (Chapter III, attack)
-How much of each note's initial hit survives compression.
-- For each onset, measure on both `in` and `out`:
-  - `peak` = peak level in the first **10 ms** after the onset
-  - `body` = RMS from **30 ms to 120 ms** after the onset
-  - `punch = peak - body` (dB)
-- `frontsKept = (punch_out / punch_in) × 100`, clamped to 0–110%.
-- Skip onsets where `punch_in < 3 dB` (no real hit to protect).
-- Report the **median** over the last 8 onsets.
-- Compare to `frontsKeptPct.min` and `frontsKeptPct.max`.
-- Below min → attack `low` (too fast). Above max → attack `high` (too slow).
+How much of each note's front gets past the compressor.
+
+*Changed in Milestone 5.* The original measure (peak in the first 10 ms minus body RMS, out vs in) was tested on a real lead vocal and read ~100% at every attack setting: a sung word's first 10 ms is its quiet lead-in, so the compressor rarely touches it, and squashing the body only makes that "punch" number go up. It only worked on drums. The measure below works on any source and moves smoothly with the knob.
+
+- For each onset, over the front window (2 ms before to 10 ms after the onset):
+  - `before` = `gr` at the start of the window (reduction left over from the last note; that's Release's business)
+  - `added` = peak `gr` in the window − `before`
+  - `wouldAdd` = peak `grTarget` in the window − `before`
+- Skip onsets where `wouldAdd < 1 dB` (the front isn't over the threshold, so attack doesn't matter).
+- `frontsKept = (1 − added / wouldAdd) × 100`, clamped to 0–100%. Fast attack catches the front (low %), slow attack lets it through (high %).
+- Report the **median** over the last 8 counted onsets.
+
+On the test vocal (Lead Vocal · More Punch, threshold for ~4.5 dB GR, 4:1): 0.3 ms → 53%, 3 ms → 88%, 10 ms → 95%, 15–30 ms → 97–98%, 100 ms → 99.7%.
+
+**Status (owner decision, Milestone 5):** until the content targets are reviewed, Chapter III's status comes from the **Attack knob against `attackMs`** (below min → `attack.low`, "too fast"; above max → `attack.high`, "too slow"). The fronts-kept meter shows the live measurement with the `frontsKeptPct` band for comparison. The two content targets don't agree on real audio yet (More Punch: 15–30 ms gives ~97%, but `frontsKeptPct` says 70–90%).
 
 ### 2.6 Recovery (Chapter IV, release)
 Two checks, either can fail:
 - **Too slow:** for each onset, read `gr` in the **5 ms just before** it. Median over the last 8 onsets = `residualGr`. If `residualGr > residualGrMaxDb`, show `release.tooSlow`.
 - **Too fast:** if release time is below `releaseMs.min` **or** GR ripple (peak-to-peak GR within any 20 ms span during sustained audio) exceeds 3 dB, show `release.tooFast`.
-- If the release knob sits inside `releaseMs` and both checks pass, show `release.onTarget`.
+- If the release knob sits inside `releaseMs` and both checks pass, show `release.onTarget`. A knob above `releaseMs.max` shows `release.tooSlow`.
+- On the test vocal, ripple stayed near 1 dB even at a 10 ms release, so "too fast" currently comes from the knob check. Revisit the 3 dB ripple limit on drums and bass.
 
 ### 2.7 Level match (Chapter V)
 - Short-term loudness (3 s, K-weighted) of `in` vs `out`.
@@ -79,6 +88,8 @@ silence ──audio──▶ listening ──2 s active──▶ evaluating
 ```
 
 Rules:
+- **Clock:** all timings below are in seconds of *audio analysed*, not wall-clock time, so "hold for 2 s" means 2 s of the track and pauses when playback stops.
+- **First reading:** the first zone after `listening` shows at once (the user has already waited 2 s); later changes need hysteresis.
 - **Hysteresis:** a metric must sit in a new zone for **1.5 seconds** before the state changes. This stops the status flickering while the user turns a knob.
 - **Green needs 2 seconds of stability.** The chapter's check mark appears after `onTarget` holds for 2 seconds.
 - **Knob moved → short reset.** When the chapter's main knob moves, hold the current message, dim the status for 300 ms, then resume evaluation. Don't wipe the reading.
@@ -90,7 +101,7 @@ Rules:
 |---|---|---|---|
 | I. The Goal | none | Dynamic range | `needCheck.*` |
 | II. Ratio & Threshold | Threshold (ratio auto-set to `ratio.start`) | GR 90th pct | `ratioThreshold.*` |
-| III. Attack | Attack | Fronts kept | `attack.*` |
+| III. Attack | Attack | Knob vs `attackMs` (status); fronts kept (meter, §2.5) | `attack.*` |
 | IV. Release | Release | Residual GR + ripple | `release.*` |
 | V. Level & Compare | Makeup | Loudness diff | `level.*` |
 | VI. Blend (parallel only) | Mix | Mix setting | `blend.*` |

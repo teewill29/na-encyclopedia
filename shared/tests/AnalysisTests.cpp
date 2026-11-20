@@ -41,17 +41,17 @@ constexpr double sr = 48000.0;
 constexpr double pi = 3.14159265358979323846;
 
 /** A signal generator: f(sampleIndex) -> {in, out, gr}. Fed in 512-sample calls. */
-struct Frame { float in, out, gr; };
+struct Frame { float in, out, gr; float target = 0.0f; };
 
 void feed (MetricsEngine& m, double seconds, const std::function<Frame (int64_t)>& f, int64_t& t)
 {
-    std::vector<float> in (512), out (512), gr (512);
+    std::vector<float> in (512), out (512), gr (512), target (512);
     auto total = (int64_t) (seconds * sr);
     while (total > 0)
     {
         const int n = (int) std::min<int64_t> (512, total);
-        for (int i = 0; i < n; ++i) { auto fr = f (t++); in[(size_t) i] = fr.in; out[(size_t) i] = fr.out; gr[(size_t) i] = fr.gr; }
-        m.process (in.data(), out.data(), gr.data(), n);
+        for (int i = 0; i < n; ++i) { auto fr = f (t++); in[(size_t) i] = fr.in; out[(size_t) i] = fr.out; gr[(size_t) i] = fr.gr; target[(size_t) i] = fr.target; }
+        m.process (in.data(), out.data(), gr.data(), target.data(), n);
         total -= n;
     }
 }
@@ -179,32 +179,37 @@ int main()
         check (q.get().onsetCount == 1, "a held tone is a single onset (got " + std::to_string (q.get().onsetCount) + ")");
     });
 
-    test ("fronts kept: 100% when untouched, lower when the front is squashed", [] {
+    test ("fronts kept: how much of the instant-attack reduction the front escaped", [] {
+        auto inFront = [] (int64_t i) { return std::fmod ((double) i / sr, 0.25) < 0.012; };
         {
             MetricsEngine m; m.prepare (sr); int64_t t = 0;
-            feed (m, 3.0, [] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.2); return Frame { s, s, 0 }; }, t);
-            checkNear (m.get().frontsKeptPct, 100.0, 1.0, "untouched");
+            // Slow attack: an instant attack would take 6 dB off the front, none is applied
+            feed (m, 3.0, [&] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.3); return Frame { s, s, 0.0f, inFront (i) ? 6.0f : 2.0f }; }, t);
+            checkNear (m.get().frontsKeptPct, 100.0, 0.5, "front untouched");
             check (m.get().frontsKeptCount == 8, "uses the last 8 onsets");
+            checkNear (m.get().lastFrontTargetGrDb, 6.0, 0.01, "would-be reduction reported");
         }
         {
             MetricsEngine m; m.prepare (sr); int64_t t = 0;
-            // out: same body, front peak lowered to 0.4 (in: 0.8)
-            feed (m, 3.0, [] (int64_t i) { return Frame { note (i, 0.25, 0.8, 0.2), note (i, 0.25, 0.4, 0.2), 0 }; }, t);
-            const double punchIn = m.get().lastPunchInDb, punchOut = m.get().lastPunchOutDb;
-            checkNear (punchIn - punchOut, 6.0, 0.7, "front ~6 dB lower");
-            checkNear (m.get().frontsKeptPct, punchOut / punchIn * 100.0, 0.5, "ratio of punches");
-            check (m.get().frontsKeptPct < 70.0, "clearly lower");
+            // Fast attack: 4.5 of the 6 dB is applied to the front -> 25% kept
+            feed (m, 3.0, [&] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.3);
+                return Frame { s, s, inFront (i) ? 4.5f : 0.0f, inFront (i) ? 6.0f : 0.0f }; }, t);
+            checkNear (m.get().frontsKeptPct, 25.0, 0.5, "front mostly caught");
+            checkNear (m.get().lastFrontGrDb, 4.5, 0.01, "applied reduction reported");
         }
         {
             MetricsEngine m; m.prepare (sr); int64_t t = 0;
-            // front softer than the body: punch_in < 3 dB, skipped.
-            // (A perfectly flat tone measures 3.01 dB, the sine's own peak-to-RMS,
-            // right at the spec's 3 dB limit: a point to tune on real tracks in M5.)
-            // 1 s notes (200 ms gaps) so the detector's 50 ms release has fully decayed
-            // and the onset fires at the true start, not when the body arrives.
-            feed (m, 6.0, [] (int64_t i) { auto s = note (i, 1.0, 0.1, 0.3); return Frame { s, s, 0 }; }, t);
-            check (m.get().onsetCount >= 5, "onsets were detected");
-            check (std::isnan (m.get().frontsKeptPct), "flat notes don't count");
+            // 2 dB left over from the last note doesn't count against attack:
+            // (4.5 - 2) of (6 - 2) dB added -> 37.5% kept
+            feed (m, 3.0, [&] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.3);
+                return Frame { s, s, inFront (i) ? 4.5f : 2.0f, inFront (i) ? 6.0f : 2.0f }; }, t);
+            checkNear (m.get().frontsKeptPct, 37.5, 0.5, "leftover reduction excluded");
+        }
+        {
+            MetricsEngine m; m.prepare (sr); int64_t t = 0;
+            // Fronts below the threshold (would-be < 1 dB) say nothing about attack
+            feed (m, 3.0, [] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.3); return Frame { s, s, 0.0f, 0.5f }; }, t);
+            check (std::isnan (m.get().frontsKeptPct) && m.get().onsetCount > 0, "skipped, though onsets were found");
         }
     });
 

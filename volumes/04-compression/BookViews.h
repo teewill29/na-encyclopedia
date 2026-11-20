@@ -91,9 +91,11 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAttachment;
 
     juce::var chapter, goal;
-    juce::String knobName, targetCaption;
+    juce::String knobName, targetCaption, attachedChapter;
 
-    juce::Rectangle<int> leftPage, rightPage, knobBlock, textBlock, setSoFarArea;
+    void paintReading (juce::Graphics&, juce::Rectangle<int> area);
+
+    juce::Rectangle<int> leftPage, rightPage, knobBlock, textBlock, setSoFarArea, readingArea;
 };
 
 } // namespace na::vol4

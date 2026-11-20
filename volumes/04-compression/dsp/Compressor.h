@@ -45,9 +45,12 @@ public:
         Optional per-sample outputs for the analysis taps:
           grOut      gain reduction in dB (positive = turning down)
           wetGainOut gain of the compressed path incl. makeup, before Mix
-                     (so `out` = input × wetGain, see FEEDBACK-ENGINE.md §1) */
+                     (so `out` = input × wetGain, see FEEDBACK-ENGINE.md §1)
+          targetGrOut the reduction an instant attack would apply right now
+                     (the static curve); lets the analysis tell how much of
+                     each note's front the attack lets through (§2.5) */
     void process (float* const* channels, int numChannels, int numSamples,
-                  float* grOut = nullptr, float* wetGainOut = nullptr) noexcept;
+                  float* grOut = nullptr, float* wetGainOut = nullptr, float* targetGrOut = nullptr) noexcept;
 
     /** Largest gain reduction (dB) in the most recent block. */
     float getBlockMaxGainReductionDb() const noexcept { return blockMaxGrDb; }

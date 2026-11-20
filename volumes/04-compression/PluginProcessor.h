@@ -5,6 +5,7 @@
 #include "analysis/Metrics.h"
 #include "analysis/TapFifo.h"
 #include "chapters/Session.h"
+#include "chapters/FeedbackTracker.h"
 #include "dsp/Compressor.h"
 
 #include <array>
@@ -59,6 +60,12 @@ public:
     void previousChapter();
     bool isMixForcedToFull() const noexcept { return mixForcedToFull.load(); }
 
+    /** The Reading for the current chapter (FEEDBACK-ENGINE.md §3). Message thread only. */
+    const na::FeedbackTracker::Display& getFeedback() const noexcept { return feedback.getDisplay(); }
+
+    /** Current knob values (as the compressor sees them). */
+    na::vol4::CompressorSettings getSettings() const noexcept { return readSettings(); }
+
     /** Latest analysis (FEEDBACK-ENGINE.md §2). Message thread only. */
     const na::analysis::Metrics& getMetrics() const noexcept { return metrics.get(); }
     unsigned getDroppedAnalysisBlocks() const noexcept { return taps.getDroppedBlocks(); }
@@ -67,6 +74,7 @@ private:
     na::vol4::CompressorSettings readSettings() const noexcept;
     void timerCallback() override;   // drains the taps into the metrics, 30 Hz
     void updateMixForce();
+    void updateFeedback();
     void restoreState (const juce::ValueTree& state);
 
     const na::Content content;  // must be built before `parameters`, which reads names from it
@@ -87,13 +95,17 @@ private:
     std::atomic<float> grPeakForUi { 0.0f };
 
     // Analysis taps (FEEDBACK-ENGINE.md §1): in (mono), out (mono, after
-    // makeup, before Mix), gr (dB). Audio thread → FIFO → message thread.
+    // makeup, before Mix), gr (dB), grTarget (dB, instant-attack reduction).
+    // Audio thread → FIFO → message thread.
     static constexpr int tapChunk = 1024;
-    std::array<float, tapChunk> tapIn {}, tapOut {}, tapGr {}, tapWetGain {};
-    na::analysis::TapFifo<3> taps { 1u << 17 };   // ~2.7 s at 48 kHz
+    std::array<float, tapChunk> tapIn {}, tapOut {}, tapGr {}, tapTarget {}, tapWetGain {};
+    na::analysis::TapFifo<4> taps { 1u << 17 };   // ~2.7 s at 48 kHz
 
     na::analysis::MetricsEngine metrics;           // message thread only
-    std::vector<float> drainIn, drainOut, drainGr; // message thread only
+    na::FeedbackTracker feedback;                  // message thread only
+    juce::String feedbackChapter;                  // chapter the tracker belongs to
+    float lastKnobValue = std::numeric_limits<float>::quiet_NaN();
+    std::vector<float> drainIn, drainOut, drainGr, drainTarget; // message thread only
     std::atomic<double> pendingSampleRate { 0.0 }; // set by prepareToPlay, applied by the timer
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressionAudioProcessor)
