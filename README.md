@@ -66,7 +66,8 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 - Formats: **AU** first (testing in Logic Pro), **VST3** from the same build. Windows VST3 after the Mac version is solid.
 - macOS universal binary (Apple Silicon + Intel), macOS 12+
 - Builds on **GitHub Actions** (`macos-15` runner); artifacts are downloaded and tested in Logic on the home Mac
-- Installer: `pkgbuild` / `productbuild` `.pkg` that drops the AU in `~/Library/Audio/Plug-Ins/Components` and the VST3 in `~/Library/Audio/Plug-Ins/VST3`
+- Installer: `pkgbuild` / `productbuild` `.pkg` that drops the AU in `/Library/Audio/Plug-Ins/Components` and the VST3 in `/Library/Audio/Plug-Ins/VST3` (all users, same as the other Noveltee Audio plugins)
+- Channel layouts: mono→mono, mono→stereo, stereo→stereo (Logic hides plugins that can't run on mono tracks)
 - Fonts: Cinzel and EB Garamond (both OFL), embedded via `BinaryData`
 
 ### Plugin identity
@@ -74,11 +75,11 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 | Field | Value |
 |---|---|
 | Company | Noveltee Audio |
-| Manufacturer code | Same 4-character code as the other Noveltee plugins (must include at least one uppercase letter) |
+| Manufacturer code | `Tywl` (shared by every Noveltee Audio plugin, so they sit together in Logic) |
 | Product name | NA Encyclopedia IV Compression |
 | Plugin code | `NE04` |
 | Bundle ID | `com.novelteeaudio.naencyclopedia.compression` |
-| Version | 1.0.0 (First Edition) |
+| Version | 1.0.x (First Edition). Bump the patch number for every build handed to Logic: Logic caches name and validation per version |
 
 ---
 
@@ -174,18 +175,25 @@ Full spec: [`docs/FEEDBACK-ENGINE.md`](docs/FEEDBACK-ENGINE.md).
 
 ## Building
 
+Normally you don't build locally: push to `main` and GitHub Actions does it.
+
+To build on a Mac anyway (needs Xcode, CMake and Ninja):
+
 ```bash
-git clone --recurse-submodules <repo-url>
-cmake -B build -G Xcode -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
-cmake --build build --config Release
+git clone <repo-url>
+cmake -G Ninja -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
 ```
 
-On push to `main`, GitHub Actions builds the AU and VST3 and uploads them (plus the `.pkg`) as workflow artifacts.
+JUCE is downloaded automatically (CMake FetchContent, pinned tag in `CMakeLists.txt`). Builds are universal (`arm64;x86_64`) by default.
+
+On every push to `main`, GitHub Actions builds the AU and VST3, ad-hoc signs them, builds the `.pkg`, installs that `.pkg` on the runner, runs `auval` and `pluginval` on the installed plugins, and uploads the `.pkg` as the **`NAEncyclopedia-IV-Compression-pkg`** artifact.
 
 ### Testing in Logic
-1. Download the build artifact and run the `.pkg` (or copy the `.component` into `~/Library/Audio/Plug-Ins/Components`).
-2. In Terminal: `auval -a` and confirm the plugin is listed, then `auval -v aufx NE04 <manufacturer code>`.
-3. Open Logic, rescan in Plug-in Manager if needed, and load it under Audio Units → Noveltee Audio.
+1. Download the `NAEncyclopedia-IV-Compression-pkg` artifact from the green run and unzip it.
+2. Double-click the `.pkg`. The first time, macOS blocks it (not notarized yet): open **System Settings → Privacy & Security** and click **Open Anyway**, then install.
+3. Open Logic and load it on a track under **Audio FX → Audio Units → Noveltee Audio → NA Encyclopedia IV Compression**. The version and build ID show in the bottom-right corner of the window.
+4. If it's missing, open **Logic Pro → Settings → Plug-in Manager**, search "NA", select it and click **Reset & Rescan Selection**.
 
 ---
 

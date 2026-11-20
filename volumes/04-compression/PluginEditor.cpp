@@ -7,7 +7,8 @@ namespace
     constexpr int baseHeight = 760;
 
     const juce::Colour paper { 0xFFF4ECDB }; // docs/UI-REFERENCE.md §3
-    const juce::Colour ink   { 0xFF2A2118 };
+    const juce::Colour ink      { 0xFF2A2118 };
+    const juce::Colour inkMuted { 0xFF5E4E3B };
 
     juce::String loadSkeletonTitle()
     {
@@ -30,4 +31,10 @@ void CompressionAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (ink);
     g.setFont (juce::FontOptions (32.0f));
     g.drawFittedText (title, getLocalBounds().reduced (40), juce::Justification::centred, 2);
+
+    // Version and build ID (data, not copy), so it's clear which build is loaded.
+    g.setColour (inkMuted);
+    g.setFont (juce::FontOptions (13.0f));
+    g.drawText (juce::String (JucePlugin_VersionString) + " (" + NA_BUILD_ID + ")",
+                getLocalBounds().reduced (16, 12), juce::Justification::bottomRight);
 }

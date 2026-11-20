@@ -1,0 +1,11 @@
+#!/bin/sh
+# The 1.0.0 test installer put the plugins in the user's own Library folder.
+# Remove those copies so Logic doesn't see two plugins with the same identity.
+# (Installer runs this as root, so find the logged-in user's home explicitly.)
+CONSOLE_USER="$(stat -f %Su /dev/console 2>/dev/null)"
+USER_HOME="$(dscl . -read "/Users/$CONSOLE_USER" NFSHomeDirectory 2>/dev/null | awk '{print $2}')"
+if [ -n "$USER_HOME" ] && [ -d "$USER_HOME" ]; then
+    rm -rf "$USER_HOME/Library/Audio/Plug-Ins/Components/NA Encyclopedia IV Compression.component" \
+           "$USER_HOME/Library/Audio/Plug-Ins/VST3/NA Encyclopedia IV Compression.vst3"
+fi
+exit 0

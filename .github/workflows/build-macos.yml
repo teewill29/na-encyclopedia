@@ -1,125 +1,146 @@
+# Build, validate and package NA Encyclopedia Vol. IV on every push to main.
 name: Build macOS
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
   workflow_dispatch:
 
+# macOS minutes are expensive: a newer push cancels the run still going.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
-  BUILD_DIR: build
-  CONFIG: Release
   ARTEFACTS: build/volumes/04-compression/NAEncyclopediaCompression_artefacts/Release
   PLUGIN_NAME: NA Encyclopedia IV Compression
-  AU_TYPE: aufx
-  AU_SUBTYPE: NE04
-  AU_MANUFACTURER: Tywl
+  AU_ID: aufx NE04 Tywl
+  AU_DISPLAY_NAME: "Noveltee Audio: NA Encyclopedia IV Compression"
   BUNDLE_ID: com.novelteeaudio.naencyclopedia.compression
 
 jobs:
   build:
-    runs-on: macos-15
+    runs-on: macos-15   # macos-14 is retired
     timeout-minutes: 60
 
     steps:
       - name: Check out
         uses: actions/checkout@v4
 
-      - name: Cache JUCE download
+      - name: Read the pinned JUCE tag from CMakeLists.txt
+        id: juce
+        run: |
+          tag=$(grep -E '^\s*GIT_TAG\s+' CMakeLists.txt | head -1 | awk '{print $2}')
+          test -n "$tag"
+          echo "Pinned JUCE tag: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Cache JUCE source
+        id: juce-cache
         uses: actions/cache@v4
         with:
-          path: .deps
-          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+          path: ~/juce-src
+          key: juce-src-${{ steps.juce.outputs.tag }}
 
-      - name: Configure (universal arm64 + x86_64)
+      - name: Download JUCE (cache miss only)
+        if: steps.juce-cache.outputs.cache-hit != 'true'
+        run: git clone --depth 1 --branch "${{ steps.juce.outputs.tag }}" https://github.com/juce-framework/JUCE.git ~/juce-src
+
+      - name: Install Ninja
+        run: command -v ninja || brew install ninja
+
+      - name: Configure (Release, universal)
         run: |
-          cmake -B "$BUILD_DIR" -G Xcode \
+          cmake -G Ninja -B build \
+            -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
-            -DFETCHCONTENT_BASE_DIR="$GITHUB_WORKSPACE/.deps"
+            -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+            -DFETCHCONTENT_SOURCE_DIR_JUCE="$HOME/juce-src"
 
-      - name: Build
-        run: cmake --build "$BUILD_DIR" --config "$CONFIG" --target NAEncyclopediaCompression_AU NAEncyclopediaCompression_VST3 --parallel -- -quiet
+      - name: Build AU and VST3
+        run: cmake --build build --parallel
 
-      - name: Locate bundles and check architectures
+      - name: Check the binaries are universal
         run: |
-          AU="$ARTEFACTS/AU/$PLUGIN_NAME.component"
-          VST3="$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"
-          test -d "$AU"   || { echo "AU bundle not found at $AU"; exit 1; }
-          test -d "$VST3" || { echo "VST3 bundle not found at $VST3"; exit 1; }
-          lipo -info "$AU/Contents/MacOS/$PLUGIN_NAME"
-          lipo -info "$VST3/Contents/MacOS/$PLUGIN_NAME"
-          lipo "$AU/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
-          lipo "$VST3/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
-          echo "AU=$AU" >> "$GITHUB_ENV"
-          echo "VST3=$VST3" >> "$GITHUB_ENV"
-
-      - name: Ad-hoc code sign
-        run: |
-          codesign --force --deep --sign - "$AU"
-          codesign --force --deep --sign - "$VST3"
-          codesign --verify --deep --strict --verbose=2 "$AU"
-          codesign --verify --deep --strict --verbose=2 "$VST3"
-
-      - name: Build installer package
-        run: |
-          VERSION=$(sed -nE 's/^ *VERSION +([0-9.]+).*/\1/p' volumes/04-compression/CMakeLists.txt | head -1)
-          PKG="dist/$PLUGIN_NAME $VERSION.pkg"
-          installer/build-pkg.sh "$AU" "$VST3" "$VERSION" "$BUNDLE_ID" "$PLUGIN_NAME" "$PKG"
-          pkgutil --check-signature "$PKG" || true   # unsigned until Milestone 8
-          echo "PKG=$PKG" >> "$GITHUB_ENV"
-
-      - name: Install the package on the runner (like a user would)
-        run: |
-          installer -pkg "$PKG" -target CurrentUserHomeDirectory -verboseR
-          test -d "$HOME/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component" \
-            || { echo "::error::Installer did not put the AU in ~/Library/Audio/Plug-Ins/Components"; exit 1; }
-          test -d "$HOME/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3" \
-            || { echo "::error::Installer did not put the VST3 in ~/Library/Audio/Plug-Ins/VST3"; exit 1; }
-          codesign --verify --deep --strict "$HOME/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component"
-          echo "Installer placed both plugins correctly."
-
-      - name: Validate the installed AU with auval
-        run: |
-          killall -9 AudioComponentRegistrar 2>/dev/null || true
-
-          for i in $(seq 1 20); do
-            if auval -a 2>/dev/null | grep -q "$AU_TYPE $AU_SUBTYPE $AU_MANUFACTURER"; then
-              echo "Component registered."
-              break
-            fi
-            echo "Waiting for component registration ($i)..."
-            sleep 3
+          for b in "$ARTEFACTS/AU/$PLUGIN_NAME.component" "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"; do
+            lipo -info "$b/Contents/MacOS/$PLUGIN_NAME"
+            lipo "$b/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
           done
 
-          auval -a | grep "$AU_SUBTYPE" || { echo "::error::Component never registered with macOS"; exit 1; }
+      - name: Ad-hoc sign
+        run: |
+          codesign --force --deep -s - "$ARTEFACTS/AU/$PLUGIN_NAME.component"
+          codesign --force --deep -s - "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"
 
+      - name: Build installer (.pkg)
+        run: |
+          installer/build-pkg.sh \
+            "$ARTEFACTS/AU/$PLUGIN_NAME.component" \
+            "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3" \
+            "$BUNDLE_ID" "$PLUGIN_NAME" build/pkg
+          PKG=$(ls build/pkg/*.pkg)
+          echo "PKG=$PKG" >> "$GITHUB_ENV"
+
+      - name: Install the .pkg on this runner, exactly like on a real Mac
+        run: |
+          sudo installer -pkg "$PKG" -target / -verboseR
+          test -d "/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component" \
+            || { echo "::error::Installer did not put the AU in /Library/Audio/Plug-Ins/Components"; exit 1; }
+          test -d "/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3" \
+            || { echo "::error::Installer did not put the VST3 in /Library/Audio/Plug-Ins/VST3"; exit 1; }
+          codesign --verify --deep --strict "/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component"
+
+      - name: auval the installed AU
+        run: |
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+          for i in $(seq 1 20); do
+            auval -a 2>/dev/null | grep -q "$AU_ID" && break
+            echo "Waiting for macOS to register the AU ($i)..."
+            sleep 3
+          done
           set +e
-          auval -strict -v "$AU_TYPE" "$AU_SUBTYPE" "$AU_MANUFACTURER" | tee auval.log
+          auval -strict -v $AU_ID | tee auval.log
           status=${PIPESTATUS[0]}
           set -e
-
           if [ "$status" -ne 0 ] || ! grep -q "AU VALIDATION SUCCEEDED" auval.log; then
-            echo "::error::auval validation FAILED"
+            echo "::error::auval failed"
             exit 1
           fi
-          echo "auval validation passed."
+          # The name Logic shows: developer and plugin.
+          auval -a | grep "$AU_ID" | tee auname.log
+          grep -q "$AU_DISPLAY_NAME" auname.log \
+            || { echo "::error::AU is not registered as '$AU_DISPLAY_NAME'"; exit 1; }
+          # Mono tracks: Logic hides plugins that can't run mono->mono or mono->stereo.
+          grep -E "1-1|1-2" auval.log || true
 
-      - name: Zip raw bundles (for debugging)
+      - name: Cache pluginval
+        id: pluginval-cache
+        uses: actions/cache@v4
+        with:
+          path: pluginval.app
+          key: pluginval-macos-v1
+
+      - name: Download pluginval (cache miss only, with retries)
+        if: steps.pluginval-cache.outputs.cache-hit != 'true'
         run: |
-          mkdir -p raw
-          ditto -c -k --keepParent "$AU"   "raw/$PLUGIN_NAME AU.zip"
-          ditto -c -k --keepParent "$VST3" "raw/$PLUGIN_NAME VST3.zip"
-          cp auval.log raw/
+          curl -fsSL --retry 6 --retry-all-errors --retry-delay 10 -o pluginval.zip \
+            https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
+          unzip -q pluginval.zip
+
+      - name: pluginval (strictness 10, VST3)
+        run: |
+          ./pluginval.app/Contents/MacOS/pluginval \
+            --strictness-level 10 \
+            --validate-in-process \
+            --verbose \
+            --validate "/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3"
 
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: NA-Encyclopedia-IV-Compression-Installer
+          name: NAEncyclopedia-IV-Compression-pkg
           path: ${{ env.PKG }}
           if-no-files-found: error
-
-      - name: Upload raw bundles and auval log
-        uses: actions/upload-artifact@v4
-        with:
-          name: raw-bundles-and-logs
-          path: raw/*
-          if-no-files-found: error
+          retention-days: 30

@@ -1,4 +1,6 @@
-#!/bin/bash
-# Tell macOS to rescan Audio Units so hosts see the new plugin straight away.
+#!/bin/sh
+# Make Logic see the new or updated plugin without a restart.
+# Only restart the AU registrar. Never clear the AU cache: that makes Logic
+# rescan every plugin on the Mac.
 killall -9 AudioComponentRegistrar >/dev/null 2>&1 || true
 exit 0

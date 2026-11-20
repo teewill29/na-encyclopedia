@@ -13,18 +13,37 @@ void CompressionAudioProcessor::releaseResources() {}
 
 bool CompressionAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
 {
-    return layouts.getMainInputChannelSet()  == juce::AudioChannelSet::stereo()
-        && layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo();
+    // Mono tracks are the norm for vocals, bass and kick, and Logic hides
+    // plugins that can't run on them. Supported: mono→mono, mono→stereo,
+    // stereo→stereo.
+    const auto in  = layouts.getMainInputChannelSet();
+    const auto out = layouts.getMainOutputChannelSet();
+
+    const auto isMonoOrStereo = [] (const juce::AudioChannelSet& set)
+    {
+        return set == juce::AudioChannelSet::mono() || set == juce::AudioChannelSet::stereo();
+    };
+
+    if (! isMonoOrStereo (in) || ! isMonoOrStereo (out))
+        return false;
+
+    return in.size() <= out.size(); // no stereo→mono
 }
 
 void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals noDenormals;
 
-    // Pass-through: input channels are already in the buffer. Only silence
-    // any output channels that have no matching input.
-    for (auto ch = getTotalNumInputChannels(); ch < getTotalNumOutputChannels(); ++ch)
-        buffer.clear (ch, 0, buffer.getNumSamples());
+    const auto numIn  = getTotalNumInputChannels();
+    const auto numOut = getTotalNumOutputChannels();
+
+    // Pass-through: input channels are already in the buffer.
+    // Mono→stereo: copy the mono input to both sides.
+    if (numIn == 1 && numOut == 2)
+        buffer.copyFrom (1, 0, buffer, 0, 0, buffer.getNumSamples());
+    else
+        for (auto ch = numIn; ch < numOut; ++ch)
+            buffer.clear (ch, 0, buffer.getNumSamples());
 }
 
 juce::AudioProcessorEditor* CompressionAudioProcessor::createEditor()

@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.22)
 
 # macOS 12+ (see README → Tech stack). Must be set before project().
 set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0" CACHE STRING "Minimum macOS version")
+set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "Universal binary: Apple Silicon + Intel")
 
 project(NAEncyclopedia VERSION 1.0.0 LANGUAGES C CXX)
 
@@ -17,6 +18,18 @@ FetchContent_Declare(
     GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(JUCE)
+
+# ── Build ID (short git commit), shown in the editor so it's obvious which
+#    build Logic has loaded ─────────────────────────────────────────────────────
+execute_process(
+    COMMAND git rev-parse --short HEAD
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    OUTPUT_VARIABLE NA_BUILD_ID
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET)
+if(NOT NA_BUILD_ID)
+    set(NA_BUILD_ID "local")
+endif()
 
 # ── Shared code used by every volume ─────────────────────────────────────────
 # Placeholder for now. Content loader, analysis, chapter engine and UI
