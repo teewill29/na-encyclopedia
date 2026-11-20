@@ -9,7 +9,18 @@
   "status": "DRAFT: every number and line here is a starting point. Verify against 2-3 sources and an engineer review before release.",
 
   "ui": {
-    "skeletonTitle": "NA Encyclopedia · Vol. IV · Compression"
+    "skeletonTitle": "NA Encyclopedia · Vol. IV · Compression",
+    "debugGainReduction": "Gain reduction",
+    "unitDb": " dB"
+  },
+
+  "parameters": {
+    "threshold": { "name": "Threshold",   "unit": " dB" },
+    "ratio":     { "name": "Ratio",       "unit": ":1" },
+    "attack":    { "name": "Attack",      "unit": " ms" },
+    "release":   { "name": "Release",     "unit": " ms" },
+    "makeup":    { "name": "Makeup Gain", "unit": " dB" },
+    "mix":       { "name": "Mix",         "unit": "%" }
   },
 
   "chapters": [

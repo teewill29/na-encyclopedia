@@ -2,7 +2,7 @@
 
 # Bump on every build you hand to Logic for testing: Logic caches each plugin's
 # name and validation result per version, so a new version forces a fresh look.
-set(NA_COMPRESSION_VERSION 1.0.1)
+set(NA_COMPRESSION_VERSION 1.0.2)
 
 if(APPLE)
     set(NA_COMPRESSION_FORMATS AU VST3)
@@ -31,8 +31,11 @@ juce_add_plugin(NAEncyclopediaCompression
 target_sources(NAEncyclopediaCompression PRIVATE
     PluginProcessor.cpp
     PluginEditor.cpp
+    Parameters.cpp
     dsp/Compressor.cpp
 )
+
+target_include_directories(NAEncyclopediaCompression PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # All copy, targets and goals, embedded so the plugin never reads files at runtime.
 # Accessed in code as BinaryData::compression_json.
@@ -59,3 +62,12 @@ target_link_libraries(NAEncyclopediaCompression
 # No link-time optimisation (juce_recommended_lto_flags) on purpose: in Front of
 # House, LTO made clang drop a store and the first channel came out silent in
 # Logic. Not worth the risk for a few percent of speed.
+
+# ── Unit tests for the compressor DSP (plain C++, no JUCE), run by ctest in CI ──
+add_executable(NAEncyclopediaCompressionTests
+    tests/CompressorTests.cpp
+    dsp/Compressor.cpp
+)
+target_include_directories(NAEncyclopediaCompressionTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_features(NAEncyclopediaCompressionTests PRIVATE cxx_std_20)
+add_test(NAME CompressorTests COMMAND NAEncyclopediaCompressionTests)

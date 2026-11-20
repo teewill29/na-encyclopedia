@@ -32,13 +32,18 @@ if(NOT NA_BUILD_ID)
 endif()
 
 # ── Shared code used by every volume ─────────────────────────────────────────
-# Placeholder for now. Content loader, analysis, chapter engine and UI
-# components land here in later milestones.
-add_library(NAEncyclopediaCore STATIC
-    shared/NAEncyclopediaCore.cpp
+# An INTERFACE library: its sources compile inside each plugin, with that
+# plugin's JUCE settings. (A STATIC library that uses JUCE would need its own
+# copy of JUCE built with matching settings, a known source of hard-to-find
+# bugs.) Content loader now; analysis, chapter engine and UI in later milestones.
+add_library(NAEncyclopediaCore INTERFACE)
+target_sources(NAEncyclopediaCore INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Content.cpp
 )
-target_include_directories(NAEncyclopediaCore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/shared)
-target_compile_features(NAEncyclopediaCore PUBLIC cxx_std_20)
+target_include_directories(NAEncyclopediaCore INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_features(NAEncyclopediaCore INTERFACE cxx_std_20)
+
+enable_testing()
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 add_subdirectory(volumes/04-compression)

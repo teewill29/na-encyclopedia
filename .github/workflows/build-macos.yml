@@ -1,9 +1,9 @@
-# Build, validate and package NA Encyclopedia Vol. IV on every push to main.
+# Build, test, validate and package NA Encyclopedia Vol. IV on every push, any branch.
 name: Build macOS
 
 on:
   push:
-    branches: [main]
+    branches: ["**"]
     paths-ignore:
       - "**.md"
   workflow_dispatch:
@@ -59,8 +59,11 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DFETCHCONTENT_SOURCE_DIR_JUCE="$HOME/juce-src"
 
-      - name: Build AU and VST3
+      - name: Build AU, VST3 and tests
         run: cmake --build build --parallel
+
+      - name: Unit tests
+        run: ctest --test-dir build --output-on-failure
 
       - name: Check the binaries are universal
         run: |

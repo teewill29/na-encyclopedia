@@ -99,7 +99,7 @@ na-encyclopedia/
 │   └── FEEDBACK-ENGINE.md      # metrics and state machine spec
 ├── assets/
 │   └── fonts/                  # Cinzel, EB Garamond + OFL license files
-├── shared/                     # NAEncyclopediaCore static library
+├── shared/                     # NAEncyclopediaCore (INTERFACE library: compiled into each plugin)
 │   ├── content/                # JSON loader, templating, goal lookup
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
@@ -109,9 +109,12 @@ na-encyclopedia/
 │       ├── CMakeLists.txt
 │       ├── PluginProcessor.{h,cpp}
 │       ├── PluginEditor.{h,cpp}
-│       └── dsp/Compressor.{h,cpp}
+│       ├── Parameters.{h,cpp}
+│       ├── dsp/Compressor.{h,cpp}
+│       └── tests/CompressorTests.cpp   # DSP unit tests, run by ctest in CI
 ├── installer/
-│   └── build-pkg.sh
+│   ├── build-pkg.sh
+│   └── scripts/                # preinstall / postinstall
 └── .github/workflows/
     └── build-macos.yml
 ```
