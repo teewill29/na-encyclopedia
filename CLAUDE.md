@@ -15,7 +15,9 @@ NA Encyclopedia by Noveltee Audio: beginner teaching plugins, one per mixing too
 - **Audio thread:** no allocation, no locks, no logging, no file I/O. Use lock-free FIFOs to hand data to analysis.
 - **Shared vs volume code:** anything another volume could reuse (book frame, knob, meter, analysis, chapter engine, content loader) goes in `shared/`. Only compressor-specific code goes in `volumes/04-compression/`.
 - **Don't change target numbers in the content file** unless asked. They're under review.
-- Keep the build green on GitHub Actions. The owner tests by downloading artifacts onto a Mac running Logic, so every push to `main` should produce a working AU.
+- Keep the build green on GitHub Actions. The owner tests by downloading the `.pkg` artifact onto a Mac running Logic.
+- **Branches:** work on one working branch; every push builds there. At each checkpoint give the owner a direct artifact link (`https://github.com/teewill29/na-encyclopedia/actions/runs/<run-id>/artifacts/<artifact-id>`) plus the run page, and say exactly what to test. Merge into `main` only after the owner has tested it in Logic and said so. `main` only holds tested builds.
+- **Version:** bump the patch version (`NA_COMPRESSION_VERSION` in `volumes/04-compression/CMakeLists.txt`) for every build handed over for testing. Logic caches name and validation per version.
 - Work milestone by milestone (README → Milestones). Don't start the book UI before the compressor and metrics work.
 
 ## Owner context
