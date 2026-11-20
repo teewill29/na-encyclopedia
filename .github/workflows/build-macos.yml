@@ -1,0 +1,105 @@
+name: Build macOS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  BUILD_DIR: build
+  CONFIG: Release
+  ARTEFACTS: build/volumes/04-compression/NAEncyclopediaCompression_artefacts/Release
+  PLUGIN_NAME: NA Encyclopedia IV Compression
+  AU_TYPE: aufx
+  AU_SUBTYPE: NE04
+  AU_MANUFACTURER: Tywl
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - name: Check out
+        uses: actions/checkout@v4
+
+      - name: Cache JUCE download
+        uses: actions/cache@v4
+        with:
+          path: .deps
+          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure (universal arm64 + x86_64)
+        run: |
+          cmake -B "$BUILD_DIR" -G Xcode \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DFETCHCONTENT_BASE_DIR="$GITHUB_WORKSPACE/.deps"
+
+      - name: Build
+        run: cmake --build "$BUILD_DIR" --config "$CONFIG" --target NAEncyclopediaCompression_AU NAEncyclopediaCompression_VST3 --parallel -- -quiet
+
+      - name: Locate bundles and check architectures
+        run: |
+          AU="$ARTEFACTS/AU/$PLUGIN_NAME.component"
+          VST3="$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"
+          test -d "$AU"   || { echo "AU bundle not found at $AU"; exit 1; }
+          test -d "$VST3" || { echo "VST3 bundle not found at $VST3"; exit 1; }
+          lipo -info "$AU/Contents/MacOS/$PLUGIN_NAME"
+          lipo -info "$VST3/Contents/MacOS/$PLUGIN_NAME"
+          lipo "$AU/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
+          lipo "$VST3/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
+          echo "AU=$AU" >> "$GITHUB_ENV"
+          echo "VST3=$VST3" >> "$GITHUB_ENV"
+
+      - name: Ad-hoc code sign
+        run: |
+          codesign --force --deep --sign - "$AU"
+          codesign --force --deep --sign - "$VST3"
+          codesign --verify --deep --strict --verbose=2 "$AU"
+          codesign --verify --deep --strict --verbose=2 "$VST3"
+
+      - name: Install AU on runner and validate with auval
+        run: |
+          COMPONENTS="$HOME/Library/Audio/Plug-Ins/Components"
+          mkdir -p "$COMPONENTS"
+          cp -R "$AU" "$COMPONENTS/"
+
+          # Make macOS notice the new component.
+          killall -9 AudioComponentRegistrar 2>/dev/null || true
+
+          for i in $(seq 1 20); do
+            if auval -a 2>/dev/null | grep -q "$AU_TYPE $AU_SUBTYPE $AU_MANUFACTURER"; then
+              echo "Component registered."
+              break
+            fi
+            echo "Waiting for component registration ($i)..."
+            sleep 3
+          done
+
+          auval -a | grep "$AU_SUBTYPE" || { echo "Component never registered with macOS"; exit 1; }
+
+          set +e
+          auval -strict -v "$AU_TYPE" "$AU_SUBTYPE" "$AU_MANUFACTURER" | tee auval.log
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$status" -ne 0 ] || ! grep -q "AU VALIDATION SUCCEEDED" auval.log; then
+            echo "::error::auval validation FAILED"
+            exit 1
+          fi
+          echo "auval validation passed."
+
+      - name: Zip bundles
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent "$AU"   "dist/$PLUGIN_NAME AU.zip"
+          ditto -c -k --keepParent "$VST3" "dist/$PLUGIN_NAME VST3.zip"
+          cp auval.log dist/
+          ls -la dist
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NA-Encyclopedia-IV-Compression-macOS
+          path: dist/*
+          if-no-files-found: error
