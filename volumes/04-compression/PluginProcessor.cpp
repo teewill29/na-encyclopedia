@@ -59,9 +59,16 @@ void CompressionAudioProcessor::timerCallback()
         if (n == 0)
             break;
         metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data(), (int) n);
+        lastAudioArrived = juce::Time::getMillisecondCounterHiRes() * 0.001;
     }
 
     updateFeedback();
+}
+
+bool CompressionAudioProcessor::isAudioArriving() const noexcept
+{
+    return lastAudioArrived >= 0.0
+        && juce::Time::getMillisecondCounterHiRes() * 0.001 - lastAudioArrived < audioStoppedAfter;
 }
 
 void CompressionAudioProcessor::updateFeedback()
@@ -91,7 +98,9 @@ void CompressionAudioProcessor::updateFeedback()
 
     using Phase = na::FeedbackTracker::Phase;
     const auto& m = metrics.get();
-    const auto phase = m.state == na::analysis::Metrics::State::silence   ? Phase::silence
+    // No audio arriving (playback stopped) reads as silence straight away.
+    const auto phase = ! isAudioArriving()                                 ? Phase::silence
+                     : m.state == na::analysis::Metrics::State::silence   ? Phase::silence
                      : m.state == na::analysis::Metrics::State::listening ? Phase::listening
                                                                           : Phase::evaluating;
     const auto zone = na::vol4::Feedback::zoneFor (chapter, session.getInstrument(), session.getGoal(), m, readSettings());

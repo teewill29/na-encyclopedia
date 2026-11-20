@@ -45,6 +45,7 @@
     "reading": {
       "title": "THE READING",
       "live": "Listening live",
+      "idle": "Waiting for playback",
       "status": {
         "silence": "Waiting for audio",
         "listening": "Listening…",

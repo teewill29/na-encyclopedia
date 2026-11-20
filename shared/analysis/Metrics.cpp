@@ -216,6 +216,7 @@ void MetricsEngine::finishTick() noexcept
     gateOpen = powerToDb (std::max (0.0, gateSum) / (double) gateRing.size()) > (float) gateDb;
 
     activeCount += (gateOpen ? 1 : 0) - activeRing.push (gateOpen ? 1 : 0);
+    metrics.inputActive = gateOpen;
 
     // §2.3 GR distribution over active audio
     const int16_t bin = gateOpen ? (int16_t) std::clamp ((int) std::lround (meanGr * 10.0f), 0, grBins - 1) : (int16_t) -1;

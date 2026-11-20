@@ -63,6 +63,12 @@ public:
     /** The Reading for the current chapter (FEEDBACK-ENGINE.md §3). Message thread only. */
     const na::FeedbackTracker::Display& getFeedback() const noexcept { return feedback.getDisplay(); }
 
+    /** True while audio is arriving and isn't silent: "Listening live".
+        Logic stops calling the plugin when playback stops, so the analysis
+        never hears the silence; this notices that audio stopped arriving. */
+    bool isListening() const noexcept { return isAudioArriving() && metrics.get().inputActive; }
+    bool isAudioArriving() const noexcept;
+
     /** Current knob values (as the compressor sees them). */
     na::vol4::CompressorSettings getSettings() const noexcept { return readSettings(); }
 
@@ -107,6 +113,8 @@ private:
     float lastKnobValue = std::numeric_limits<float>::quiet_NaN();
     std::vector<float> drainIn, drainOut, drainGr, drainTarget; // message thread only
     std::atomic<double> pendingSampleRate { 0.0 }; // set by prepareToPlay, applied by the timer
+    double lastAudioArrived = -1.0;                // wall clock, seconds (message thread)
+    static constexpr double audioStoppedAfter = 0.3;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressionAudioProcessor)
 };

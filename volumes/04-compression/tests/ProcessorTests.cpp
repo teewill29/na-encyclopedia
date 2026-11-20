@@ -360,6 +360,25 @@ int main()
         p.releaseResources();
     });
 
+    test ("playback stopped: The Reading stops listening (Logic stops calling the plugin)", [] {
+        CompressionAudioProcessor p;
+        p.setPlayConfigDetails (2, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+        p.beginBook ("leadVocal", "punch");
+        p.openChapter ("level");
+        int64_t t = 0;
+        play (p, 4.0, 2, t);
+        check (p.isListening(), "listening while audio plays");
+        check (p.getFeedback().phase == na::FeedbackTracker::Phase::evaluating, "evaluating while audio plays");
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (600);   // no processBlock calls: stopped
+        check (! p.isListening(), "not listening once audio stops arriving");
+        check (p.getFeedback().phase == na::FeedbackTracker::Phase::silence, "status goes to silence");
+        play (p, 0.5, 2, t);
+        check (p.isListening(), "listening again when playback resumes");
+        p.releaseResources();
+    });
+
     if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
     {
         auto snap = [&dir] (juce::Component& c, const char* name)

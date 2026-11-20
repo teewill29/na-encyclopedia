@@ -16,6 +16,7 @@ struct Metrics
 
     enum class State { silence, listening, evaluating };   // §2.1 / §3
     State state = State::silence;
+    bool  inputActive = false;        // the 300 ms gate is open right now (§2.1)
     float activeSeconds = 0.0f;       // active audio in the analysis window
 
     float dynamicRangeDb = none;      // §2.2: p95 − p10 of momentary loudness (active only)

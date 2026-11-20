@@ -521,10 +521,12 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     auto header = inner.removeFromTop (18);
     g.setColour (labelInk); g.setFont (font (12.0f, true));
     g.drawText (content.getString ("book.reading.title"), header, juce::Justification::centredLeft);
+    const bool listening = processor.isListening();
+    const auto liveText = content.getString (listening ? "book.reading.live" : "book.reading.idle");
     g.setColour (inkMuted); g.setFont (font (13.0f, false, true));
-    g.drawText (content.getString ("book.reading.live"), header.withTrimmedRight (0), juce::Justification::centredRight);
-    const auto liveW = juce::GlyphArrangement::getStringWidthInt (font (13.0f, false, true), content.getString ("book.reading.live"));
-    g.setColour (fb.phase == Phase::silence ? inkMuted.withAlpha (0.4f) : good);
+    g.drawText (liveText, header, juce::Justification::centredRight);
+    const auto liveW = juce::GlyphArrangement::getStringWidthInt (font (13.0f, false, true), liveText);
+    g.setColour (listening ? good : inkMuted.withAlpha (0.4f));
     g.fillEllipse ((float) (header.getRight() - liveW - 14), (float) header.getCentreY() - 4.0f, 8.0f, 8.0f);
     inner.removeFromTop (6);
 
