@@ -39,6 +39,8 @@ endif()
 add_library(NAEncyclopediaCore INTERFACE)
 target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Content.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/content/Template.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/Session.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/Metrics.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/MetricsOverlay.cpp
 )
@@ -59,6 +61,21 @@ add_executable(NAEncyclopediaAnalysisTests
 target_include_directories(NAEncyclopediaAnalysisTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaAnalysisTests PRIVATE cxx_std_20)
 add_test(NAME AnalysisTests COMMAND NAEncyclopediaAnalysisTests)
+
+# Unit tests for shared/content and shared/chapters (need JUCE core + data structures)
+juce_add_console_app(NAEncyclopediaContentTests PRODUCT_NAME "NAEncyclopediaContentTests")
+target_sources(NAEncyclopediaContentTests PRIVATE
+    shared/tests/ContentTests.cpp
+    shared/content/Content.cpp
+    shared/content/Template.cpp
+    shared/chapters/Session.cpp
+)
+target_include_directories(NAEncyclopediaContentTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_definitions(NAEncyclopediaContentTests PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
+target_link_libraries(NAEncyclopediaContentTests
+    PRIVATE juce::juce_data_structures
+    PUBLIC  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+add_test(NAME ContentTests COMMAND NAEncyclopediaContentTests)
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 add_subdirectory(volumes/04-compression)

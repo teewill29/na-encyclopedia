@@ -1,6 +1,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "Parameters.h"
+#include "Chapters.h"
 #include "BinaryData.h"
 
 using namespace na::vol4;
@@ -28,6 +29,7 @@ CompressionAudioProcessor::CompressionAudioProcessor()
 
 CompressionAudioProcessor::~CompressionAudioProcessor()
 {
+    aliveToken.reset();
     stopTimer();
 }
 
@@ -89,7 +91,8 @@ CompressorSettings CompressionAudioProcessor::readSettings() const noexcept
     s.attackMs    = attack->load (std::memory_order_relaxed);
     s.releaseMs   = release->load (std::memory_order_relaxed);
     s.makeupDb    = makeup->load (std::memory_order_relaxed);
-    s.mixPct      = mix->load (std::memory_order_relaxed);
+    s.mixPct      = mixForcedToFull.load (std::memory_order_relaxed) ? 100.0f
+                                                                     : mix->load (std::memory_order_relaxed);
     return s;
 }
 
@@ -151,17 +154,75 @@ juce::AudioProcessorEditor* CompressionAudioProcessor::createEditor()
     return new CompressionAudioProcessorEditor (*this);
 }
 
+void CompressionAudioProcessor::beginBook (const juce::String& instrumentId, const juce::String& goalId)
+{
+    session.setup (instrumentId, goalId);
+    if (! session.getChapterIds().isEmpty())
+        openChapter (session.getChapterIds()[0]);
+    updateMixForce();
+}
+
+void CompressionAudioProcessor::openChapter (const juce::String& chapterId)
+{
+    if (session.goTo (chapterId))
+        na::vol4::applyStartValues (chapterId, session.getGoal(), parameters);
+    updateMixForce();
+}
+
+void CompressionAudioProcessor::nextChapter()
+{
+    const auto i = session.getCurrentIndex();
+    if (i >= 0 && i + 1 < session.getChapterIds().size())
+        openChapter (session.getChapterIds()[i + 1]);
+}
+
+void CompressionAudioProcessor::previousChapter()
+{
+    const auto i = session.getCurrentIndex();
+    if (i > 0)
+        openChapter (session.getChapterIds()[i - 1]);
+}
+
+void CompressionAudioProcessor::updateMixForce()
+{
+    mixForcedToFull.store (na::vol4::isMixForcedToFull (session));
+}
+
 void CompressionAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
-    if (auto xml = parameters.copyState().createXml())
+    // Parameters plus the book session (instrument, goal, chapter, progress).
+    auto state = parameters.copyState();
+    state.removeChild (state.getChildWithName (na::Session::treeType), nullptr);
+    state.appendChild (session.toValueTree(), nullptr);
+
+    if (auto xml = state.createXml())
         copyXmlToBinary (*xml, destData);
 }
 
 void CompressionAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
-    if (auto xml = getXmlFromBinary (data, sizeInBytes))
-        if (xml->hasTagName (parameters.state.getType()))
-            parameters.replaceState (juce::ValueTree::fromXml (*xml));
+    auto xml = getXmlFromBinary (data, sizeInBytes);
+    if (xml == nullptr || ! xml->hasTagName (parameters.state.getType()))
+        return;
+
+    auto state = juce::ValueTree::fromXml (*xml);
+    // The session is message-thread only; hosts usually restore there, but not always.
+    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
+        restoreState (state);
+    else
+        juce::MessageManager::callAsync ([this, state, alive = std::weak_ptr<int> (aliveToken)]
+                                         { if (alive.lock()) restoreState (state); });
+}
+
+void CompressionAudioProcessor::restoreState (const juce::ValueTree& stateIn)
+{
+    auto state = stateIn.createCopy();
+    const auto sessionTree = state.getChildWithName (na::Session::treeType);
+    state.removeChild (sessionTree, nullptr);
+    parameters.replaceState (state);
+    if (sessionTree.isValid())
+        session.fromValueTree (sessionTree);
+    updateMixForce();
 }
 
 // Called by the plugin wrappers to create a new instance.

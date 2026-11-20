@@ -4,6 +4,7 @@
 #include "content/Content.h"
 #include "analysis/Metrics.h"
 #include "analysis/TapFifo.h"
+#include "chapters/Session.h"
 #include "dsp/Compressor.h"
 
 #include <array>
@@ -48,6 +49,16 @@ public:
     /** Peak gain reduction (dB) since the last call. Message thread only. */
     float takeGainReductionPeakDb() noexcept { return grPeakForUi.exchange (0.0f); }
 
+    // ── The book (message thread only) ──────────────────────────────────────
+    na::Session& getSession() noexcept { return session; }
+    /** Title Page → "Begin": picks instrument + goal and opens the first chapter. */
+    void beginBook (const juce::String& instrumentId, const juce::String& goalId);
+    /** Opens a chapter, applying its start values on the first visit. */
+    void openChapter (const juce::String& chapterId);
+    void nextChapter();
+    void previousChapter();
+    bool isMixForcedToFull() const noexcept { return mixForcedToFull.load(); }
+
     /** Latest analysis (FEEDBACK-ENGINE.md §2). Message thread only. */
     const na::analysis::Metrics& getMetrics() const noexcept { return metrics.get(); }
     unsigned getDroppedAnalysisBlocks() const noexcept { return taps.getDroppedBlocks(); }
@@ -55,6 +66,8 @@ public:
 private:
     na::vol4::CompressorSettings readSettings() const noexcept;
     void timerCallback() override;   // drains the taps into the metrics, 30 Hz
+    void updateMixForce();
+    void restoreState (const juce::ValueTree& state);
 
     const na::Content content;  // must be built before `parameters`, which reads names from it
     juce::AudioProcessorValueTreeState parameters;
@@ -65,6 +78,10 @@ private:
     std::atomic<float>* release   = nullptr;
     std::atomic<float>* makeup    = nullptr;
     std::atomic<float>* mix       = nullptr;
+
+    na::Session session { content };
+    std::atomic<bool> mixForcedToFull { false };  // parallel goals, Chapters II-IV
+    std::shared_ptr<int> aliveToken = std::make_shared<int> (0); // guards async callbacks
 
     na::vol4::Compressor compressor;
     std::atomic<float> grPeakForUi { 0.0f };

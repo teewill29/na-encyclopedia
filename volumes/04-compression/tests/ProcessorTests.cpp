@@ -1,8 +1,9 @@
 // End-to-end tests of the real CompressionAudioProcessor: audio thread → taps →
 // FIFO → 30 Hz analysis timer → metrics, plus layouts, state and parameter names.
-// Run by ctest in CI. Set NA_SNAPSHOT=/path/to/file.png to also save an editor screenshot.
+// Run by ctest in CI. Set NA_SNAPSHOT_DIR=/some/folder to also save editor screenshots.
 
 #include "PluginProcessor.h"
+#include "content/Template.h"
 
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_gui_basics/juce_gui_basics.h>
@@ -103,18 +104,6 @@ int main()
         check (m.levelDiffDb < -1.0f, "output quieter than input without makeup: " + std::to_string (m.levelDiffDb));
         check (p.getDroppedAnalysisBlocks() == 0, "no analysis blocks dropped");
 
-        if (auto path = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT", {}); path.isNotEmpty())
-        {
-            std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
-            juce::MessageManager::getInstance()->runDispatchLoopUntil (300);
-            play (p, 0.5, 2, t);
-            auto image = editor->createComponentSnapshot (editor->getLocalBounds(), true, 2.0f);
-            juce::File file (path);
-            file.deleteFile();
-            juce::FileOutputStream out (file);
-            juce::PNGImageFormat().writeImageToStream (image, out);
-            p.editorBeingDeleted (editor.get());
-        }
         p.releaseResources();
     });
 
@@ -177,6 +166,129 @@ int main()
         check (std::abs (value ("attack") - 25.0f) < 0.05f, "attack");
         check (std::abs (value ("mix") - 40.0f) < 0.5f, "mix");
     });
+
+
+    test ("every chapter of every goal fills in (no {placeholders} left)", [] {
+        CompressionAudioProcessor p;
+        const auto& content = p.getContent();
+        int checked = 0;
+        for (const auto& instrument : *content.instruments())
+            for (const auto& goal : *instrument["goals"].getArray())
+            {
+                const auto where = (instrument["id"].toString() + "/" + goal["id"].toString()).toStdString();
+                for (const auto& id : content.chapterIdsFor (goal))
+                {
+                    const auto chapter = content.findChapter (id);
+                    for (const char* field : { "intro", "subtitle", "doThis", "doThisFromFast", "doThisFromSlow", "listenFor", "tryThis" })
+                    {
+                        if (! chapter.hasProperty (field)) continue;
+                        const auto text = na::Template::fill (chapter[field].toString(), na::Template::forGoal (goal));
+                        check (! text.containsChar ('{') && text.isNotEmpty(), where + " " + id.toStdString() + "." + field + ": " + text.toStdString());
+                        ++checked;
+                    }
+                }
+                const auto approach = goal["attackMs"]["approach"].toString();
+                check (approach == "fromFast" || approach == "fromSlow", where + " attackMs.approach");
+                check (goal["name"].toString().isNotEmpty() && goal["tagline"].toString().isNotEmpty(), where + " name and tagline");
+            }
+        check (checked > 100, "checked " + std::to_string (checked) + " strings");
+    });
+
+    test ("chapters set their start values once, on the first visit", [] {
+        CompressionAudioProcessor p;
+        auto value = [&p] (const char* id) { return p.getValueTree().getRawParameterValue (id)->load(); };
+        p.beginBook ("leadVocal", "punch");          // ratio 4, attack 5 (fromFast), release 250
+        check (p.getSession().getCurrentChapterId() == "goal", "opens Chapter I");
+        p.nextChapter();
+        check (std::abs (value ("ratio") - 4.0f) < 0.05f, "Chapter II sets the goal's ratio");
+        p.nextChapter();
+        check (std::abs (value ("attack") - 5.0f) < 0.05f, "Chapter III sets attack.start");
+        setParam (p, "attack", 22.0f);               // the user dials it in
+        p.nextChapter();
+        check (std::abs (value ("release") - 250.0f) < 0.5f, "Chapter IV sets release.start");
+        p.previousChapter();
+        check (std::abs (value ("attack") - 22.0f) < 0.05f, "coming back keeps the user's attack");
+        check (p.getSession().getChapterIds().size() == 5 && ! p.getSession().getChapterIds().contains ("blend"), "5 chapters, no Blend");
+    });
+
+    test ("parallel goal: Blend chapter, Mix forced to 100% in II-IV", [] {
+        CompressionAudioProcessor p;
+        p.beginBook ("drumBus", "parallelSmash");
+        const auto& ids = p.getSession().getChapterIds();
+        check (ids.size() == 6 && ids[5] == "blend", "6 chapters ending in Blend");
+        check (! p.isMixForcedToFull(), "not forced in Chapter I");
+        p.openChapter ("ratioThreshold"); check (p.isMixForcedToFull(), "forced in II");
+        p.openChapter ("attack");         check (p.isMixForcedToFull(), "forced in III");
+        p.openChapter ("release");        check (p.isMixForcedToFull(), "forced in IV");
+        p.openChapter ("level");          check (! p.isMixForcedToFull(), "not forced in V");
+        p.openChapter ("blend");
+        check (! p.isMixForcedToFull(), "not forced in Blend");
+        check (std::abs (p.getValueTree().getRawParameterValue ("mix")->load() - 0.0f) < 0.5f, "Blend starts Mix at mixPct.start");
+
+        CompressionAudioProcessor q;
+        q.beginBook ("leadVocal", "punch");
+        q.openChapter ("attack");
+        check (! q.isMixForcedToFull(), "normal goals never force Mix");
+    });
+
+    test ("the book is saved with the project", [] {
+        juce::MemoryBlock state;
+        {
+            CompressionAudioProcessor p;
+            p.beginBook ("bass", "punchy");
+            p.openChapter ("attack");
+            p.getSession().setDone ("goal", true);
+            p.getStateInformation (state);
+        }
+        CompressionAudioProcessor q;
+        q.setStateInformation (state.getData(), (int) state.getSize());
+        const auto& s = q.getSession();
+        check (s.getInstrumentId() == "bass" && s.getGoalId() == "punchy", "setup");
+        check (s.getCurrentChapterId() == "attack" && ! s.isOnTitlePage(), "chapter");
+        check (s.isDone ("goal"), "progress");
+        check (std::abs (q.getValueTree().getRawParameterValue ("attack")->load() - 5.0f) < 0.05f, "parameters too");
+
+        juce::MemoryBlock again;   // saving twice doesn't pile up copies
+        q.getStateInformation (again);
+        auto xml = juce::AudioProcessor::getXmlFromBinary (again.getData(), (int) again.getSize());
+        int sessions = 0;
+        for (auto* child : xml->getChildIterator()) sessions += child->hasTagName ("Session") ? 1 : 0;
+        check (sessions == 1, "one session in the saved state");
+    });
+
+    if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
+    {
+        auto snap = [&dir] (juce::Component& c, const char* name)
+        {
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (200);
+            auto image = c.createComponentSnapshot (c.getLocalBounds(), true, 2.0f);
+            juce::File file = juce::File (dir).getChildFile (name);
+            file.deleteFile();
+            juce::FileOutputStream out (file);
+            juce::PNGImageFormat().writeImageToStream (image, out);
+        };
+        CompressionAudioProcessor p;
+        p.setPlayConfigDetails (2, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
+        snap (*editor, "1-title-page.png");
+        p.beginBook ("leadVocal", "punch");
+        int64_t t = 0;
+        play (p, 3.0, 2, t);
+        snap (*editor, "2-chapter-1.png");
+        p.openChapter ("ratioThreshold");
+        p.openChapter ("attack");
+        snap (*editor, "3-chapter-3.png");
+        p.beginBook ("electricDistorted", "lightTouch");
+        p.getSession().showTitlePage();
+        snap (*editor, "4-title-lesson.png");
+        p.beginBook ("drumBus", "parallelSmash");
+        p.openChapter ("blend");
+        snap (*editor, "5-blend.png");
+        p.editorBeingDeleted (editor.get());
+        editor.reset();
+        p.releaseResources();
+    }
 
     std::printf ("\n%s: %d failure(s)\n", failures == 0 ? "PASSED" : "FAILED", failures);
     return failures == 0 ? 0 : 1;

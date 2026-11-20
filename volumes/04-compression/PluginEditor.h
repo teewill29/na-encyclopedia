@@ -1,34 +1,34 @@
 #pragma once
 
 #include "PluginProcessor.h"
+#include "BookViews.h"
 #include "ui/MetricsOverlay.h"
 
-// Plain test editor: JUCE's generic sliders for every parameter, a live
-// gain-reduction meter and (NA_DEBUG_OVERLAY) the analysis debug overlay.
-// The book UI replaces this in Milestone 6.
+// The plugin window: Title Page or a chapter, depending on the session.
+// Functional and unstyled until the book UI in Milestone 6.
 class CompressionAudioProcessorEditor final : public juce::AudioProcessorEditor,
-                                              private juce::Timer
+                                              private juce::ChangeListener
 {
 public:
     explicit CompressionAudioProcessorEditor (CompressionAudioProcessor&);
     ~CompressionAudioProcessorEditor() override;
 
     void paint (juce::Graphics&) override;
+    void paintOverChildren (juce::Graphics&) override;
     void resized() override;
 
 private:
-    void timerCallback() override;
+    void changeListenerCallback (juce::ChangeBroadcaster*) override { showCurrentPage(); }
+    void showCurrentPage();
 
     CompressionAudioProcessor& processor;
-    juce::GenericAudioProcessorEditor generic;
+    na::vol4::TitleView titleView;
+    na::vol4::ChapterView chapterView;
+
    #if NA_DEBUG_OVERLAY
     na::MetricsOverlay overlay;
+    juce::TextButton debugButton;
    #endif
-
-    juce::String title;      // from the content file
-    juce::String grLabel;    // from the content file
-    juce::String dbUnit;     // from the content file
-    float grDisplayDb = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressionAudioProcessorEditor)
 };

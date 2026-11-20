@@ -28,6 +28,19 @@ public:
     /** Like get(), as a string. Returns fallback if the path is missing. */
     juce::String getString (juce::StringRef dottedPath, const juce::String& fallback = {}) const;
 
+    // ── Instruments, goals and chapters (in file order) ────────────────────
+    const juce::Array<juce::var>* instruments() const;
+    const juce::Array<juce::var>* chapters() const;
+
+    /** The instrument / goal / chapter object with this id, or a void var. */
+    juce::var findInstrument (const juce::String& instrumentId) const;
+    juce::var findGoal (const juce::String& instrumentId, const juce::String& goalId) const;
+    juce::var findChapter (const juce::String& chapterId) const;
+
+    /** Chapter ids for a goal, in book order: every chapter not marked
+        "optional", plus optional ones the goal lists in "extraChapters". */
+    juce::StringArray chapterIdsFor (const juce::var& goal) const;
+
 private:
     juce::var root;
 };

@@ -104,13 +104,15 @@ na-encyclopedia/
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
 │   ├── ui/                     # book frame, spine, pages, knob, meter, buttons, LookAndFeel
-│   └── tests/                  # analysis unit tests
+│   └── tests/                  # analysis, content and session unit tests
 ├── volumes/
 │   └── 04-compression/
 │       ├── CMakeLists.txt
 │       ├── PluginProcessor.{h,cpp}
 │       ├── PluginEditor.{h,cpp}
 │       ├── Parameters.{h,cpp}
+│       ├── Chapters.{h,cpp}    # per-chapter knob, target, start values, Mix forcing
+│       ├── BookViews.{h,cpp}   # Title Page + chapter page (plain, until M6)
 │       ├── dsp/Compressor.{h,cpp}
 │       └── tests/              # DSP unit tests + end-to-end processor tests (ctest in CI)
 ├── installer/

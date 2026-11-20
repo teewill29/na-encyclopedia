@@ -8,10 +8,40 @@
   "edition": "First Edition",
   "status": "DRAFT: every number and line here is a starting point. Verify against 2-3 sources and an engineer review before release.",
 
-  "ui": {
-    "skeletonTitle": "NA Encyclopedia · Vol. IV · Compression",
-    "debugGainReduction": "Gain reduction",
-    "unitDb": " dB"
+  "book": {
+    "titlePage": {
+      "brand": "NOVELTEE AUDIO",
+      "series": "NA Encyclopedia",
+      "topic": "Compression",
+      "volume": "VOLUME IV",
+      "edition": "First Edition",
+      "eyebrow": "BEFORE WE BEGIN",
+      "heading": "Set the scene",
+      "intro": "Tell the book what you're working on and what you want it to do.",
+      "instrumentQuestion": "What are you compressing?",
+      "goalQuestion": "What should it do?",
+      "begin": "BEGIN CHAPTER I"
+    },
+    "chapterPage": {
+      "contents": "CONTENTS",
+      "setup": "{instrument} · {goal}",
+      "change": "Change",
+      "readingNow": "reading now",
+      "setSoFar": "SET SO FAR",
+      "eyebrow": "CHAPTER {numeral}",
+      "counter": "{current} of {total}",
+      "doThis": "DO THIS",
+      "listenFor": "LISTEN FOR",
+      "tryThis": "TRY THIS",
+      "target": "Target: {min}–{max}{unit}",
+      "targetGr": "Target: {min}–{max} dB of gain reduction",
+      "previous": "‹ Chapter {numeral}",
+      "next": "CHAPTER {numeral} ›",
+      "dynamicRange": "{value} dB of movement",
+      "dynamicRangeWaiting": "Play the track to measure it",
+      "debugToggle": "Debug"
+    },
+    "units": { "attackMs": " ms", "releaseMs": " ms", "mixPct": "%" }
   },
 
   "debug": {
