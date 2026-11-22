@@ -45,7 +45,7 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 |---|---|---|
 | I | Gain Staging | **Built** (spec: [`docs/GAIN-STAGING.md`](docs/GAIN-STAGING.md)), ship prep on hold |
 | II | Balance & Panning | Planned |
-| III | EQ | Planned |
+| III | EQ | Spec drafted ([`docs/EQ.md`](docs/EQ.md)), awaiting owner review |
 | **IV** | **Compression** | **Built (Milestones 1–7), ship prep on hold** |
 | V | De-essing | Planned |
 | VI | Gating | Planned |

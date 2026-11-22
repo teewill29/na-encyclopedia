@@ -1,0 +1,1100 @@
+{
+  "schemaVersion": 1,
+  "series": "NA Encyclopedia",
+  "brand": "Noveltee Audio",
+  "volume": 3,
+  "volumeNumeral": "III",
+  "topic": "EQ",
+  "edition": "First Edition",
+  "status": "DRAFT: every number and line here is a starting point. Verify against 2-3 sources and an engineer review before release.",
+  "book": {
+    "cloth": "#1C3354",
+    "spine": {
+      "vol": "VOL."
+    },
+    "titlePage": {
+      "brand": "NOVELTEE AUDIO",
+      "series": "NA Encyclopedia",
+      "topic": "EQ",
+      "volume": "VOLUME III",
+      "edition": "First Edition",
+      "eyebrow": "BEFORE WE BEGIN",
+      "heading": "Set the scene",
+      "intro": "Tell the book what you're working on and how you want it to sound.",
+      "instrumentQuestion": "What are you EQing?",
+      "goalQuestion": "How should it sound?",
+      "begin": "BEGIN CHAPTER I",
+      "footnote": "You can change these anytime from the Contents page.",
+      "gainNote": {
+        "eyebrow": "BEFORE YOU EQ",
+        "body": "Gain stage first (Volume I), and listen in the mix, not on its own. A track that sounds thin solo often sits perfectly with everything else playing."
+      }
+    },
+    "chapterPage": {
+      "contents": "CONTENTS",
+      "setup": "{instrument} · {goal}",
+      "change": "Change",
+      "readingNow": "reading now",
+      "setSoFar": "SET SO FAR",
+      "eyebrow": "CHAPTER {numeral}",
+      "counter": "{current} of {total}",
+      "doThis": "DO THIS",
+      "listenFor": "LISTEN FOR",
+      "tryThis": "TRY THIS",
+      "target": "Target: {min} to {max}{unit}",
+      "previous": "‹ Chapter {numeral}",
+      "next": "CHAPTER {numeral} ›",
+      "readoutWaiting": "Play the track to measure it",
+      "debugToggle": "Debug",
+      "hearRemoved": "Hear what's removed",
+      "compare": "Compare at equal level",
+      "hearBand": "Hear the band"
+    },
+    "units": {
+      "hz": " Hz",
+      "db": " dB"
+    },
+    "reading": {
+      "title": "THE READING",
+      "live": "Listening live",
+      "idle": "Waiting for playback",
+      "meterTarget": "Target zone: {min}–{max}{unit}",
+      "status": {
+        "silence": "Waiting for audio",
+        "listening": "Listening…",
+        "listen": {
+          "needed": "Worth fixing",
+          "notNeeded": "Fairly balanced"
+        },
+        "lowEnd": {
+          "low": "Still rumbly",
+          "high": "Too thin",
+          "onTarget": "Right on target"
+        },
+        "mud": {
+          "wrongPlace": "Wrong place",
+          "low": "Not cutting yet",
+          "high": "Cutting too much",
+          "onTarget": "Right on target",
+          "nothing": "Nothing to fix"
+        },
+        "harsh": {
+          "wrongPlace": "Wrong place",
+          "low": "Not cutting yet",
+          "high": "Cutting too much",
+          "tooWide": "Too wide",
+          "onTarget": "Right on target",
+          "nothing": "Nothing to fix"
+        },
+        "shape": {
+          "wrongPlace": "Wrong place",
+          "low": "Not there yet",
+          "high": "Too much",
+          "tooNarrow": "Too narrow",
+          "onTarget": "Right on target"
+        },
+        "level": {
+          "high": "Too loud",
+          "low": "Too quiet",
+          "onTarget": "Levels match"
+        }
+      },
+      "meters": {
+        "rumble": "Rumble",
+        "mud": "Mud build-up",
+        "harsh": "Harsh build-up",
+        "levelDiff": "Output vs original"
+      }
+    }
+  },
+  "debug": {
+    "title": "Analysis (debug)",
+    "none": "–",
+    "states": {
+      "silence": "silence",
+      "listening": "listening",
+      "evaluating": "evaluating"
+    },
+    "units": {
+      "db": " dB",
+      "lufs": " LUFS",
+      "percent": "%",
+      "seconds": " s"
+    },
+    "labels": {
+      "state": "State",
+      "activeSeconds": "Active audio in window",
+      "dynamicRange": "Dynamic range (p95 − p10)",
+      "momentaryIn": "Momentary loudness, in",
+      "grNow": "Gain reduction, now",
+      "grP90": "Gain reduction, 90th percentile",
+      "onsets": "Onsets detected",
+      "frontsKept": "Fronts kept (median of last 8)",
+      "frontsKeptCount": "Onsets in that median",
+      "frontGr": "Last front: reduction applied",
+      "frontTargetGr": "Last front: instant attack would apply",
+      "residualGr": "Residual GR before notes",
+      "ripple": "GR ripple, sustained",
+      "loudnessIn": "Short-term loudness, in",
+      "loudnessOut": "Short-term loudness, out",
+      "levelDiff": "Level difference (out − in)",
+      "peakIn": "Peaks, in (95th pct)",
+      "peakOut": "Peaks, out (95th pct)",
+      "averageIn": "Average, in (RMS)",
+      "averageOut": "Average, out (RMS)",
+      "maxPeak": "Loudest peak since reset",
+      "dropped": "Dropped analysis blocks"
+    }
+  },
+  "parameters": {
+    "band1Freq": {
+      "name": "Band 1 Frequency",
+      "unit": " Hz"
+    },
+    "band1Gain": {
+      "name": "Band 1 Gain",
+      "unit": " dB"
+    },
+    "band1Q": {
+      "name": "Band 1 Width",
+      "unit": ""
+    },
+    "band2Freq": {
+      "name": "Band 2 Frequency",
+      "unit": " Hz"
+    },
+    "band2Gain": {
+      "name": "Band 2 Gain",
+      "unit": " dB"
+    },
+    "band2Q": {
+      "name": "Band 2 Width",
+      "unit": ""
+    },
+    "band3Freq": {
+      "name": "Band 3 Frequency",
+      "unit": " Hz"
+    },
+    "band3Gain": {
+      "name": "Band 3 Gain",
+      "unit": " dB"
+    },
+    "band3Q": {
+      "name": "Band 3 Width",
+      "unit": ""
+    },
+    "band4Freq": {
+      "name": "Band 4 Frequency",
+      "unit": " Hz"
+    },
+    "band4Gain": {
+      "name": "Band 4 Gain",
+      "unit": " dB"
+    },
+    "band4Q": {
+      "name": "Band 4 Width",
+      "unit": ""
+    },
+    "band5Freq": {
+      "name": "Band 5 Frequency",
+      "unit": " Hz"
+    },
+    "band5Gain": {
+      "name": "Band 5 Gain",
+      "unit": " dB"
+    },
+    "band5Q": {
+      "name": "Band 5 Width",
+      "unit": ""
+    },
+    "band1On": {
+      "name": "Band 1 On",
+      "unit": ""
+    },
+    "band2On": {
+      "name": "Band 2 On",
+      "unit": ""
+    },
+    "band3On": {
+      "name": "Band 3 On",
+      "unit": ""
+    },
+    "band4On": {
+      "name": "Band 4 On",
+      "unit": ""
+    },
+    "band5On": {
+      "name": "Band 5 On",
+      "unit": ""
+    },
+    "band1Shape": {
+      "name": "Band 1 Shape",
+      "unit": "",
+      "choices": [
+        "Low Cut",
+        "Low Shelf"
+      ]
+    },
+    "band5Shape": {
+      "name": "Band 5 Shape",
+      "unit": "",
+      "choices": [
+        "High Shelf",
+        "Bell"
+      ]
+    },
+    "output": {
+      "name": "Output",
+      "unit": " dB"
+    }
+  },
+  "chapters": [
+    {
+      "id": "listen",
+      "numeral": "I",
+      "title": "Listen First",
+      "intro": "EQ turns parts of a sound up or down by pitch, from deep lows to airy highs. Before touching anything, look and listen: where does this track's energy sit?",
+      "doThis": "Play the busiest section for about ten seconds and watch the spectrum. The shaded areas are where mud and harshness usually build up on a {instrumentName}.",
+      "listenFor": "Boomy, cardboard-like tone (mud) or a hard, tiring edge (harshness). Most tracks need a little of one, not both."
+    },
+    {
+      "id": "lowEnd",
+      "numeral": "II",
+      "title": "Clean the Low End",
+      "subtitle": "Make room underneath",
+      "intro": "Most sounds carry rumble below their lowest useful note: handling noise, room boom, mic stand thumps. A low cut removes it so the bass and kick have room.",
+      "doThis": "Start at {lowCutHz.start} Hz. Slowly raise the low cut until the sound starts to thin out, then back off a little.",
+      "listenFor": "The track getting cleaner and tighter, not thinner. If the body disappears, you've gone too far."
+    },
+    {
+      "id": "mud",
+      "numeral": "III",
+      "title": "Cut the Mud",
+      "subtitle": "Find it, then dip it",
+      "intro": "Mud is a build-up in the low mids that makes a track sound boomy or boxy. The trick is to find it first, then cut just a few dB.",
+      "doThis": "Hold Hear the band and sweep the frequency through the shaded area until it sounds worst. Let go, then turn the gain down a few dB.",
+      "listenFor": "The track opening up and getting clearer, while keeping its warmth.",
+      "tryThis": "Bypass the band for a moment. If the track sounds better with it off, your cut is in the wrong place."
+    },
+    {
+      "id": "harsh",
+      "numeral": "IV",
+      "title": "Tame the Harshness",
+      "subtitle": "Smooth the edge",
+      "intro": "Harshness is a hard, tiring edge in the upper mids. It usually lives in a narrow spot, so a small, narrow cut does the job.",
+      "doThis": "Hold Hear the band and sweep through the shaded area to find the sharpest, most painful spot. Let go, keep the width narrow, and cut gently.",
+      "listenFor": "The edge softening while the words or notes stay clear. Cut too much and the track goes dull."
+    },
+    {
+      "id": "shape",
+      "numeral": "V",
+      "title": "Shape the Tone",
+      "subtitle": "Small moves, wide curves",
+      "intro": "Now the problems are fixed, gently push the tone toward your goal. Good boosts are small and wide: a few dB with a broad curve.",
+      "doThis": "Set the band inside the shaded area. Bring the gain up slowly until the track sounds {goalName}, then back off a touch.",
+      "listenFor": "{goal.listenFor}"
+    },
+    {
+      "id": "level",
+      "numeral": "VI",
+      "title": "Level & Compare",
+      "intro": "EQ changes how loud a track is, and louder always sounds better. Match the level before you decide whether your EQ helped.",
+      "doThis": "Turn Output until the after version matches the original. Then hold Compare to flip between them at the same volume.",
+      "listenFor": "Whether the after version is clearer and sits better, not just louder or brighter."
+    }
+  ],
+  "messages": {
+    "listening": "Keep playing. The plugin needs a few seconds of the track to take a reading.",
+    "silence": "Nothing is coming in. Press play on a section where this track is playing.",
+    "listen": {
+      "needed": "This track has a build-up worth fixing. The next chapters will find it.",
+      "notNeeded": "This track is already fairly balanced. Gentle moves only, or none at all. You can still continue."
+    },
+    "lowEnd": {
+      "low": "Still letting rumble through. Raise the low cut a little.",
+      "high": "That's cutting into the body of the sound. Bring the low cut back down.",
+      "onTarget": "Clean underneath, body intact. Turn to Chapter III."
+    },
+    "mud": {
+      "wrongPlace": "That's outside the usual mud range for this instrument. Sweep through the shaded area.",
+      "low": "Not cutting yet. Turn the gain down a few dB.",
+      "high": "That's a lot of cut. Bring it back up so the warmth stays.",
+      "onTarget": "Mud dipped, warmth kept. Turn to Chapter IV.",
+      "nothing": "There's no real mud here. Leave this band flat and turn to Chapter IV."
+    },
+    "harsh": {
+      "wrongPlace": "That's outside the usual harsh range for this instrument. Sweep through the shaded area.",
+      "low": "Not cutting yet. Turn the gain down a little.",
+      "high": "Too much: the track will go dull. Ease the cut back.",
+      "tooWide": "Narrow the width. Harshness lives in a small spot.",
+      "onTarget": "Edge smoothed, clarity kept. Turn to Chapter V.",
+      "nothing": "There's no real harshness here. Leave this band flat and turn to Chapter V."
+    },
+    "shape": {
+      "wrongPlace": "Move the band into the shaded area for this goal.",
+      "low": "A little more. Bring the gain up slowly.",
+      "high": "Subtle beats loud. Back the boost off.",
+      "tooNarrow": "Widen the curve. Tone boosts work best broad.",
+      "onTarget": "That's the tone. Turn to Chapter VI."
+    },
+    "level": {
+      "high": "Louder than the original, which makes it sound better than it is. Turn Output down.",
+      "low": "Quieter than the original. Turn Output up until they match.",
+      "onTarget": "Levels match. Now hold Compare and trust your ears."
+    }
+  },
+  "instruments": [
+    {
+      "id": "leadVocal",
+      "name": "Lead Vocal",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 2500,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "clear",
+          "name": "Clear & Present",
+          "tagline": "Words sit forward and easy to understand",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 1500,
+            "max": 3500
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Words stepping forward without getting sharp."
+        },
+        {
+          "id": "warm",
+          "name": "Warm & Smooth",
+          "tagline": "Full and close, without edge",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 150,
+            "max": 300
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A fuller, closer sound without boom."
+        }
+      ]
+    },
+    {
+      "id": "backingVocals",
+      "name": "Backing Vocals",
+      "lowCutHz": {
+        "min": 120,
+        "max": 200,
+        "start": 40
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 2500,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "tuck",
+          "name": "Tuck Behind the Lead",
+          "tagline": "Supporting, not competing",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 8000,
+            "max": 12000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 2
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "The backing sitting just behind the lead, a little softer on top."
+        },
+        {
+          "id": "airy",
+          "name": "Airy & Wide",
+          "tagline": "Light and shimmering",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 10000,
+            "max": 14000
+          },
+          "boostDb": {
+            "min": 2,
+            "max": 4
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A light shimmer on the top, no hiss."
+        }
+      ]
+    },
+    {
+      "id": "acousticGuitar",
+      "name": "Acoustic Guitar",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 400
+      },
+      "harshHz": {
+        "min": 2000,
+        "max": 4000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "sparkle",
+          "name": "Sparkle",
+          "tagline": "Strings and pick shine",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 8000,
+            "max": 12000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 4
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Strings shining without getting thin."
+        },
+        {
+          "id": "body",
+          "name": "Fuller Body",
+          "tagline": "Warmer, less thin",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 150,
+            "max": 250
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "More wood and weight, not boom."
+        }
+      ]
+    },
+    {
+      "id": "electricClean",
+      "name": "Electric Guitar (Clean)",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 2000,
+        "max": 4000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "chime",
+          "name": "Chime",
+          "tagline": "Bright, glassy top",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 5000,
+            "max": 9000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Bright and glassy, not brittle."
+        },
+        {
+          "id": "round",
+          "name": "Round & Warm",
+          "tagline": "Thick and smooth",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 200,
+            "max": 400
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Thicker and smoother, still clear."
+        }
+      ]
+    },
+    {
+      "id": "electricDistorted",
+      "name": "Electric Guitar (Distorted)",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 250,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 2500,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "tight",
+          "name": "Tight & Focused",
+          "tagline": "Punchy riffs, less fizz",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 800,
+            "max": 1500
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Riffs punching through, less fizz."
+        },
+        {
+          "id": "heavy",
+          "name": "Big & Heavy",
+          "tagline": "Weight without mud",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 100,
+            "max": 200
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "More weight under the riffs, still clear."
+        }
+      ]
+    },
+    {
+      "id": "bass",
+      "name": "Bass",
+      "lowCutHz": {
+        "min": 30,
+        "max": 50,
+        "start": 20
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 400
+      },
+      "harshHz": {
+        "min": 1500,
+        "max": 3000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "growl",
+          "name": "More Growl",
+          "tagline": "Notes speak on small speakers",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 700,
+            "max": 1200
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 4
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Notes you can follow even on small speakers."
+        },
+        {
+          "id": "deep",
+          "name": "Deep & Round",
+          "tagline": "Solid low end",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 60,
+            "max": 100
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A solid, round bottom without boom."
+        }
+      ]
+    },
+    {
+      "id": "kick",
+      "name": "Kick",
+      "lowCutHz": {
+        "min": 30,
+        "max": 50,
+        "start": 20
+      },
+      "mudHz": {
+        "min": 300,
+        "max": 600
+      },
+      "harshHz": {
+        "min": 3000,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "click",
+          "name": "More Click",
+          "tagline": "Beater cuts through",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 2500,
+            "max": 5000
+          },
+          "boostDb": {
+            "min": 2,
+            "max": 5
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "The beater cutting through the mix."
+        },
+        {
+          "id": "thump",
+          "name": "More Thump",
+          "tagline": "Chest-hitting low end",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 50,
+            "max": 80
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 4
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Low end you feel in your chest."
+        }
+      ]
+    },
+    {
+      "id": "snare",
+      "name": "Snare",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 400,
+        "max": 800
+      },
+      "harshHz": {
+        "min": 3000,
+        "max": 6000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "crack",
+          "name": "More Crack",
+          "tagline": "Sharper, snappier hit",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 2000,
+            "max": 4000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 4
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A sharper, snappier hit."
+        },
+        {
+          "id": "fat",
+          "name": "Fatter",
+          "tagline": "Bigger body",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 150,
+            "max": 250
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "More body under the crack."
+        }
+      ]
+    },
+    {
+      "id": "drumBus",
+      "name": "Drum Bus",
+      "lowCutHz": {
+        "min": 30,
+        "max": 50,
+        "start": 20
+      },
+      "mudHz": {
+        "min": 250,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 3000,
+        "max": 6000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "open",
+          "name": "Open & Bright",
+          "tagline": "Cymbals and room come forward",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 8000,
+            "max": 12000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Cymbals and room opening up, not harsh."
+        },
+        {
+          "id": "punchy",
+          "name": "Punchy",
+          "tagline": "Weight in the kick and snare",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 80,
+            "max": 120
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "More weight in the hits."
+        }
+      ]
+    },
+    {
+      "id": "pianoKeys",
+      "name": "Piano / Keys",
+      "lowCutHz": {
+        "min": 40,
+        "max": 80,
+        "start": 20
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 500
+      },
+      "harshHz": {
+        "min": 2500,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "bright",
+          "name": "Bright & Clear",
+          "tagline": "Notes ring through the mix",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 6000,
+            "max": 10000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Notes ringing clearly through the mix."
+        },
+        {
+          "id": "warm",
+          "name": "Warm",
+          "tagline": "Soft, rounded tone",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 150,
+            "max": 300
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A fuller, closer sound without boom."
+        }
+      ]
+    },
+    {
+      "id": "mixBus",
+      "name": "Mix Bus",
+      "lowCutHz": {
+        "min": 20,
+        "max": 35,
+        "start": 20
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 400
+      },
+      "harshHz": {
+        "min": 2500,
+        "max": 5000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "polish",
+          "name": "Gentle Polish",
+          "tagline": "A little air and openness",
+          "shapeBand": 5,
+          "shapeHz": {
+            "min": 10000,
+            "max": 14000
+          },
+          "boostDb": {
+            "min": 0.5,
+            "max": 2
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "The whole mix opening up a touch, nothing sticking out."
+        }
+      ]
+    },
+    {
+      "id": "spokenVoice",
+      "name": "Spoken Voice / Podcast",
+      "lowCutHz": {
+        "min": 80,
+        "max": 120,
+        "start": 30
+      },
+      "mudHz": {
+        "min": 200,
+        "max": 400
+      },
+      "harshHz": {
+        "min": 3000,
+        "max": 6000
+      },
+      "mudNeedDb": 3,
+      "harshNeedDb": 3,
+      "mudCutDb": {
+        "min": -6,
+        "max": -2
+      },
+      "mudAfterMaxDb": 1.5,
+      "harshCutDb": {
+        "min": -5,
+        "max": -1.5
+      },
+      "harshAfterMaxDb": 1.5,
+      "harshMinQ": 2,
+      "goals": [
+        {
+          "id": "clear",
+          "name": "Clear & Intelligible",
+          "tagline": "Every word easy to follow",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 2000,
+            "max": 4000
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "Words stepping forward without getting sharp."
+        },
+        {
+          "id": "broadcast",
+          "name": "Broadcast Warmth",
+          "tagline": "Rich, radio-style close voice",
+          "shapeBand": 3,
+          "shapeHz": {
+            "min": 120,
+            "max": 200
+          },
+          "boostDb": {
+            "min": 1,
+            "max": 3
+          },
+          "shapeMaxQ": 1.5,
+          "listenFor": "A rich, close, radio-style voice."
+        }
+      ]
+    }
+  ]
+}
