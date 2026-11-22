@@ -178,7 +178,7 @@ Full spec: [`docs/FEEDBACK-ENGINE.md`](docs/FEEDBACK-ENGINE.md).
 5. **Live feedback.** States, hysteresis and messages wired to the metrics. Tune thresholds on real tracks.
 6. **The book UI.** Build to `docs/UI-REFERENCE.md`.
 7. **Listening tools.** Compare, Hear what's removed, level matching.
-8. **Ship prep.** Installer, signing and notarization, beta with real beginners, content review by an engineer.
+8. **Ship prep.** *On hold (owner, Milestone 7).* Installer, signing and notarization, beta with real beginners, content review by an engineer, **and product licensing** (each plugin needs its own licence/unlock before it can be sold; approach not chosen yet). Milestones 1–7 are done and tested in Logic.
 
 ---
 
