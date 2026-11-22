@@ -157,13 +157,22 @@ void TitleView::resized()
 
 void TitleView::paint (juce::Graphics& g)
 {
-    // ── Left page: the title, centred (UI-REFERENCE §6.1) ───────────────────
+    // ── Left page: the title (UI-REFERENCE §6.1), then the gain-staging note ─
     {
         const auto l = leftPage();
         const float cx = (float) l.getCentreX();
         const int w = l.getWidth() - 112;
-        // Column: 13 + 18 + 14 + 18 + 32 + 18 + 64 + 18 + 18 + 18 + 14 + 18 + 24 = 307
-        int y = l.getCentreY() - 307 / 2;
+
+        // The note sits at the foot of the page, between two gold rules.
+        const auto noteBody = text ("gainNote.body");
+        const auto noteFont = F::garamond (16.0f, 400, true);
+        const int noteBodyH = Text::measure (noteBody, noteFont, w, 1.4f);
+        const int noteH = 1 + 14 + 14 + 8 + noteBodyH + 14 + 1;
+        const auto note = juce::Rectangle<int> (l.getX() + 56, l.getBottom() - 56 - noteH, w, noteH);
+
+        // Title column: 13 + 18 + 14 + 18 + 32 + 18 + 64 + 18 + 18 + 18 + 14 + 18 + 24 = 307,
+        // centred in the space above the note.
+        int y = l.getY() + (note.getY() - l.getY() - 307) / 2;
         auto row = [&] (int h) { auto rr = juce::Rectangle<int> (l.getX() + 56, y, w, h); y += h + 18; return rr; };
         eyebrow (g, text ("brand"), row (13), 13.0f, 0.32f, P::labelInk, juce::Justification::centred);
         ornament (g, cx, (float) y + 7.0f); y += 14 + 18;
@@ -175,6 +184,15 @@ void TitleView::paint (juce::Graphics& g)
         ornament (g, cx, (float) y + 7.0f); y += 14 + 18;
         g.setColour (P::inkMuted); g.setFont (F::garamond (19.0f, 400, true));
         g.drawText (text ("edition"), row (24), juce::Justification::centred);
+
+        auto n = note;
+        g.setColour (P::goldLine);
+        g.fillRect (n.removeFromTop (1));
+        g.fillRect (n.removeFromBottom (1));
+        n.removeFromTop (14);
+        eyebrow (g, text ("gainNote.eyebrow"), n.removeFromTop (14), 12.0f, 0.24f, P::labelInk, juce::Justification::centred);
+        n.removeFromTop (8);
+        Text::draw (g, noteBody, n, noteFont, P::inkSoft, juce::Justification::centredTop, 1.4f);
     }
 
     // ── Right page ──────────────────────────────────────────────────────────
@@ -271,6 +289,27 @@ ChapterView::ChapterView (CompressionAudioProcessor& p)
     nextButton.onClick = [this] { processor.nextChapter(); };
     addAndMakeVisible (nextButton);
 
+    // Listening tools (UI-REFERENCE §6.2, FEEDBACK-ENGINE.md §6): one at a time
+    removedButton.setButtonText (text ("hearRemoved"));
+    setStyle (removedButton, ButtonStyle::secondary, Icon::headphones);
+    removedButton.setClickingTogglesState (true);
+    removedButton.onClick = [this]
+    {
+        const bool on = removedButton.getToggleState();
+        if (on) compareButton.setToggleState (false, juce::dontSendNotification);
+        processor.setListenMode (on ? CompressionAudioProcessor::ListenMode::removed : CompressionAudioProcessor::ListenMode::normal);
+    };
+    addAndMakeVisible (removedButton);
+
+    compareButton.setButtonText (text ("compare"));
+    setStyle (compareButton, ButtonStyle::secondary, Icon::swap);
+    compareButton.onToggle = [this] (bool on)
+    {
+        if (on) removedButton.setToggleState (false, juce::dontSendNotification);
+        processor.setListenMode (on ? CompressionAudioProcessor::ListenMode::compare : CompressionAudioProcessor::ListenMode::normal);
+    };
+    addAndMakeVisible (compareButton);
+
     knob.setActive (true);
     addChildComponent (knob);
 
@@ -280,6 +319,18 @@ ChapterView::ChapterView (CompressionAudioProcessor& p)
 ChapterView::~ChapterView()
 {
     stopTimer();
+}
+
+void ChapterView::timerCallback()
+{
+    // Keep the buttons in step if the mode was changed elsewhere (e.g. a reload).
+    const auto mode = processor.getListenMode();
+    removedButton.setToggleState (mode == CompressionAudioProcessor::ListenMode::removed, juce::dontSendNotification);
+    compareButton.setToggleState (mode == CompressionAudioProcessor::ListenMode::compare, juce::dontSendNotification);
+
+    repaint (rightPage().withTop (reading.getY()));
+    repaint (setSoFarArea);
+    repaint (knobBlock);
 }
 
 juce::String ChapterView::text (const char* key) const
@@ -449,10 +500,27 @@ void ChapterView::resized()
     layoutRightPage();
     const auto r = rightPage().withTrimmedTop (36).withTrimmedBottom (30).reduced (44, 0);
     const auto bottom = r.withTop (r.getBottom() - 46);
-    const int nextW = (int) Text::width (nextButton.getButtonText(), F::cinzel (14.0f, 600, 0.14f)) + 44;
+
+    // Bottom row: listening tools on the left, previous / next on the right.
+    const auto toolW = [] (const juce::Button& b) { return (int) Text::width (b.getButtonText(), F::garamond (16.0f, 600)) + 18 + 8 + 28; };
+    const int nextW = (int) Text::width (nextButton.getButtonText(), F::cinzel (14.0f, 600, 0.14f)) + 40;
+    const int prevW = (int) Text::width (previousButton.getButtonText(), F::garamond (16.0f, 400, true)) + 24;
+    const int removedW = toolW (removedButton), compareW = toolW (compareButton);
+
+    removedButton.setBounds (bottom.getX(), bottom.getY(), removedW, 46);
+    compareButton.setBounds (removedButton.getRight() + 10, bottom.getY(), compareW, 46);
     nextButton.setBounds (bottom.getRight() - nextW, bottom.getY(), nextW, 46);
-    const int prevW = (int) Text::width (previousButton.getButtonText(), F::garamond (16.0f, 400, true)) + 28;
-    previousButton.setBounds ((nextButton.isVisible() ? nextButton.getX() - 10 : bottom.getRight()) - prevW, bottom.getY(), prevW, 46);
+    const int rightEdge = nextButton.isVisible() ? nextButton.getX() - 8 : bottom.getRight();
+
+    // Too narrow for all four? "‹ Chapter II" moves up beside the "3 of 5" counter.
+    previousInHeader = compareButton.getRight() + 12 + prevW > rightEdge;
+    if (previousInHeader)
+    {
+        const auto counterW = (int) Text::width ("00 of 00", F::garamond (14.0f, 400, true)) + 16;
+        previousButton.setBounds (header.getRight() - counterW - prevW, header.getCentreY() - 17, prevW, 34);
+    }
+    else
+        previousButton.setBounds (rightEdge - prevW, bottom.getY(), prevW, 46);
 }
 
 void ChapterView::paint (juce::Graphics& g)

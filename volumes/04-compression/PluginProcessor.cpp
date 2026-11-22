@@ -38,6 +38,7 @@ CompressionAudioProcessor::~CompressionAudioProcessor()
 void CompressionAudioProcessor::prepareToPlay (double sampleRate, int)
 {
     compressor.prepare (sampleRate);
+    listening.prepare (sampleRate);
     pendingSampleRate.store (sampleRate);
     setLatencySamples (0);
 }
@@ -63,6 +64,10 @@ void CompressionAudioProcessor::timerCallback()
     }
 
     updateFeedback();
+
+    // Compare plays the dry input turned up/down by the measured out − in loudness.
+    if (const auto diff = metrics.get().levelDiffDb; std::isfinite (diff))
+        compareGainDb.store (diff);
 }
 
 bool CompressionAudioProcessor::isAudioArriving() const noexcept
@@ -170,6 +175,8 @@ void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
             buffer.clear (ch, 0, n);
 
     compressor.setSettings (readSettings());
+    listening.setMode ((ListenMode) listenMode.load (std::memory_order_relaxed));
+    listening.setCompareGainDb (compareGainDb.load (std::memory_order_relaxed));
 
     const auto numCh = juce::jmin (numOut, Compressor::maxChannels);
     auto* const* channels = buffer.getArrayOfWritePointers();
@@ -183,11 +190,17 @@ void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, 
         for (int ch = 0; ch < numCh; ++ch)
             chunk[ch] = channels[ch] + start;
 
-        // `in` tap: mono sum before compression
+        // `in` tap: mono sum before compression; keep the dry input for the listening tools
         for (int i = 0; i < len; ++i)
             tapIn[(size_t) i] = numCh == 2 ? 0.5f * (chunk[0][i] + chunk[1][i]) : chunk[0][i];
+        for (int ch = 0; ch < numCh; ++ch)
+            std::copy (chunk[ch], chunk[ch] + len, dry[(size_t) ch].begin());
 
-        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data(), tapTarget.data());
+        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data(), tapTarget.data(), removed.data());
+
+        // Compare / Hear what's removed (after the taps' sources are captured)
+        const float* dryChannels[2] = { dry[0].data(), dry[1].data() };
+        listening.process (chunk, dryChannels, removed.data(), numCh, len);
         blockMaxGr = juce::jmax (blockMaxGr, compressor.getBlockMaxGainReductionDb());
 
         // `out` tap: after makeup, before Mix (the gain is linked, so in × wet gain)

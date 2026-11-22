@@ -50,6 +50,29 @@ namespace
     }
 }
 
+// ── HoldToggleButton ─────────────────────────────────────────────────────────
+void HoldToggleButton::set (bool on)
+{
+    setToggleState (on, juce::dontSendNotification);
+    if (onToggle) onToggle (on);
+}
+
+void HoldToggleButton::mouseDown (const juce::MouseEvent& e)
+{
+    juce::TextButton::mouseDown (e);
+    wasOn = getToggleState();
+    downAt = juce::Time::getMillisecondCounter();
+    if (! wasOn) set (true);     // on at once, so holding is instant
+}
+
+void HoldToggleButton::mouseUp (const juce::MouseEvent& e)
+{
+    juce::TextButton::mouseUp (e);
+    const bool held = juce::Time::getMillisecondCounter() - downAt > 350;
+    if (held)        set (false);      // momentary
+    else if (wasOn)  set (false);      // a click on an "on" button turns it off
+}
+
 // ── LookAndFeel ──────────────────────────────────────────────────────────────
 BookLookAndFeel::BookLookAndFeel (juce::Colour c) : cloth (c)
 {

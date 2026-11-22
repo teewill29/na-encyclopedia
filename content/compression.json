@@ -23,7 +23,11 @@
       "instrumentQuestion": "What are you compressing?",
       "goalQuestion": "What should it do?",
       "begin": "BEGIN CHAPTER I",
-      "footnote": "You can change these anytime from the Contents page."
+      "footnote": "You can change these anytime from the Contents page.",
+      "gainNote": {
+        "eyebrow": "FIRST, GAIN STAGE",
+        "body": "Set this track's level before it reaches the compressor. Use clip gain or a trim so the loud parts peak around −10 to −6 dBFS. Tracks with a lot of dynamic range need this most: if the level is far off, the threshold and every target in this book will be off too."
+      }
     },
     "chapterPage": {
       "contents": "CONTENTS",
@@ -42,7 +46,9 @@
       "next": "CHAPTER {numeral} ›",
       "dynamicRange": "{value} dB of movement",
       "dynamicRangeWaiting": "Play the track to measure it",
-      "debugToggle": "Debug"
+      "debugToggle": "Debug",
+      "hearRemoved": "Hear what's removed",
+      "compare": "Compare at equal level"
     },
     "units": { "attackMs": " ms", "releaseMs": " ms", "mixPct": "%" },
     "reading": {

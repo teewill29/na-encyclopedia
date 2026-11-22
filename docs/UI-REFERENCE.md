@@ -100,6 +100,7 @@ Spine background: horizontal gradient `leatherDark → leatherMid (40%) → #2B1
 
 ### 6.1 Title Page (first launch, or "Change" from Contents)
 - **Left page, centered:** "NOVELTEE AUDIO" eyebrow, ornament rule, *NA Encyclopedia* (italic), **Compression** (Cinzel 58), "Volume IV" eyebrow, ornament rule, *First Edition* (italic).
+- **Left page, foot:** the gain-staging note ("FIRST, GAIN STAGE" eyebrow + italic body, `book.titlePage.gainNote`) between two `goldLine` rules. Added in Milestone 7 at the owner's request: compression targets only make sense on a track that's already at a sensible level.
 - **Right page:** "BEFORE WE BEGIN" eyebrow, "Set the scene" heading, one line of intro.
   - Dropdown: **What are you compressing?** All instruments from the content file, in file order.
   - **What should it do?** Goal cards in a 2-column grid, one per goal for the chosen instrument (1 to 3 cards). Card = goal name + tagline. Selected card: 2 px `cloth` border, darker paper, check mark.
@@ -130,6 +131,9 @@ Spine background: horizontal gradient `leatherDark → leatherMid (40%) → #2B1
   - Status: 12 px status dot + status label (20 px, status color) + coaching message (17 px)
   - Two meters side by side (see §7). Chapter-specific: Chapter II shows GR; III shows GR + Fronts kept; IV shows GR + Recovery; V shows In vs Out loudness.
 - Bottom row: **Hear what's removed** (toggle), **Compare at equal level** (hold/toggle), spacer, *‹ Chapter II* (text button), **CHAPTER IV ›** (primary)
+  - All four don't fit in the 570 px row at these font sizes, so *‹ Chapter II* moves to the top row, left of *3 of 5*, whenever the row is too narrow.
+  - Compare: a quick click toggles; holding longer than 350 ms is momentary (off on release). The two tools are exclusive.
+- Long chapters: if the right page doesn't fit, the layout steps down in this order: instructions text (to 15.5 px), section gaps, The Reading's padding, intro (to 16 px), instructions (to 14 px), message, intro (to 15 px). The knob shrinks (to 96 px) before any text does.
 
 Chapter numbering: I The Goal, II Ratio & Threshold, III Attack, IV Release, V Level & Compare, VI Blend (parallel goals only). The *x of y* counter uses the goal's real chapter count.
 

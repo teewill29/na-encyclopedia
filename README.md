@@ -103,6 +103,7 @@ na-encyclopedia/
 │   ├── content/                # JSON loader, templating, goal lookup
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
+│   ├── dsp/                    # listening tools (Compare, Hear what's removed)
 │   ├── ui/                     # Style (palette, fonts), BookFrame (cloth, spine, pages), Controls (knob, meter, buttons, icons, LookAndFeel), MetricsOverlay
 │   └── tests/                  # analysis, content and session unit tests
 ├── volumes/

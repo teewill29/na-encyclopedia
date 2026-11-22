@@ -379,6 +379,70 @@ int main()
         p.releaseResources();
     });
 
+    test ("hear what's removed: removed + (compressed without makeup) = the original", [] {
+        // Two identical processors, one normal and one on "Hear what's removed".
+        CompressionAudioProcessor a, b;
+        for (auto* p : { &a, &b })
+        {
+            p->setPlayConfigDetails (2, 2, sr, block);
+            p->prepareToPlay (sr, block);
+            setParam (*p, "threshold", -30.0f);
+            setParam (*p, "makeup", 6.0f);
+        }
+        b.setListenMode (CompressionAudioProcessor::ListenMode::removed);
+        juce::AudioBuffer<float> ba (2, block), bb (2, block);
+        juce::MidiBuffer midi;
+        const float makeup = std::pow (10.0f, 6.0f / 20.0f);
+        double worst = 0.0, energy = 0.0;
+        int64_t t = 0;
+        for (int k = 0; k < 100; ++k)
+        {
+            for (int i = 0; i < block; ++i, ++t)
+                for (int ch = 0; ch < 2; ++ch) { ba.setSample (ch, i, hit (t)); bb.setSample (ch, i, hit (t)); }
+            a.processBlock (ba, midi);
+            b.processBlock (bb, midi);
+            if (k < 10) continue;                                   // let the 20 ms crossfade finish
+            for (int i = 0; i < block; ++i)
+            {
+                const double original = hit (t - block + i);
+                worst = std::max (worst, std::abs (ba.getSample (0, i) / makeup + bb.getSample (0, i) - original));
+                energy += bb.getSample (0, i) * bb.getSample (0, i);
+            }
+        }
+        check (worst < 1.0e-4, "adds back up to the original, worst error " + std::to_string (worst));
+        check (energy > 1.0, "there is something removed to hear");
+    });
+
+    test ("compare: the original at equal loudness", [] {
+        CompressionAudioProcessor normal, compare;
+        double rms[2] = {};
+        int idx = 0;
+        for (auto* p : { &normal, &compare })
+        {
+            p->setPlayConfigDetails (2, 2, sr, block);
+            p->prepareToPlay (sr, block);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+            setParam (*p, "threshold", -30.0f);       // ~10 dB quieter than the input, no makeup
+            int64_t t = 0;
+            play (*p, 4.0, 2, t);                      // let the analysis measure out - in
+            if (p == &compare) p->setListenMode (CompressionAudioProcessor::ListenMode::compare);
+            juce::AudioBuffer<float> buf (2, block);
+            juce::MidiBuffer midi;
+            double sum = 0; int n = 0;
+            for (int k = 0; k < 200; ++k)
+            {
+                for (int i = 0; i < block; ++i, ++t) for (int ch = 0; ch < 2; ++ch) buf.setSample (ch, i, hit (t));
+                p->processBlock (buf, midi);
+                if (k < 20) continue;
+                for (int i = 0; i < block; ++i) { sum += buf.getSample (0, i) * buf.getSample (0, i); ++n; }
+            }
+            rms[idx++] = 10.0 * std::log10 (sum / n);
+            p->releaseResources();
+        }
+        check (std::abs (rms[1] - rms[0]) < 1.5, "compare within 1.5 dB of the compressed sound: "
+               + std::to_string (rms[0]) + " vs " + std::to_string (rms[1]) + " dB");
+    });
+
     if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
     {
         auto snap = [&dir] (juce::Component& c, const char* name)

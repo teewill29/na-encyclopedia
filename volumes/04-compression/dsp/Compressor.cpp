@@ -80,7 +80,7 @@ float Compressor::gainReductionDb (float inputDb, float thresholdDb, float r, fl
 }
 
 void Compressor::process (float* const* channels, int numChannels, int numSamples,
-                          float* grOut, float* wetGainOut, float* targetGrOut) noexcept
+                          float* grOut, float* wetGainOut, float* targetGrOut, float* removedOut) noexcept
 {
     numChannels = std::clamp (numChannels, 0, maxChannels);
     blockMaxGrDb = 0.0f;
@@ -101,7 +101,8 @@ void Compressor::process (float* const* channels, int numChannels, int numSample
         const auto coeff = targetGr > envelopeDb ? attackCoeff : releaseCoeff;
         envelopeDb = targetGr + coeff * (envelopeDb - targetGr);
 
-        const auto wet = dbToGain (-envelopeDb) * makeupGain.next();
+        const auto reduction = dbToGain (-envelopeDb);
+        const auto wet = reduction * makeupGain.next();
         const auto m   = mix.next();
         const auto gain = m * wet + (1.0f - m); // dry is unity gain, no latency to match
 
@@ -114,6 +115,8 @@ void Compressor::process (float* const* channels, int numChannels, int numSample
             wetGainOut[i] = wet;
         if (targetGrOut != nullptr)
             targetGrOut[i] = targetGr;
+        if (removedOut != nullptr)
+            removedOut[i] = 1.0f - reduction;
 
         blockMaxGrDb = std::max (blockMaxGrDb, envelopeDb);
     }

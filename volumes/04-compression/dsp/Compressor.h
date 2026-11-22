@@ -48,9 +48,12 @@ public:
                      (so `out` = input × wetGain, see FEEDBACK-ENGINE.md §1)
           targetGrOut the reduction an instant attack would apply right now
                      (the static curve); lets the analysis tell how much of
-                     each note's front the attack lets through (§2.5) */
+                     each note's front the attack lets through (§2.5)
+          removedOut the fraction of the input taken away, before makeup:
+                     1 − reduction gain ("Hear what's removed", §6) */
     void process (float* const* channels, int numChannels, int numSamples,
-                  float* grOut = nullptr, float* wetGainOut = nullptr, float* targetGrOut = nullptr) noexcept;
+                  float* grOut = nullptr, float* wetGainOut = nullptr, float* targetGrOut = nullptr,
+                  float* removedOut = nullptr) noexcept;
 
     /** Largest gain reduction (dB) in the most recent block. */
     float getBlockMaxGainReductionDb() const noexcept { return blockMaxGrDb; }

@@ -82,7 +82,7 @@ public:
     void resized() override;
 
 private:
-    void timerCallback() override { repaint (rightPage().withTop (reading.getY())); repaint (setSoFarArea); repaint (knobBlock); }
+    void timerCallback() override;
     juce::String text (const char* key) const;
     juce::String fill (const juce::String& templ, std::initializer_list<std::pair<juce::String, juce::String>> values) const;
     juce::String chapterText (const char* field) const;
@@ -99,7 +99,9 @@ private:
     const na::Content& content;
     juce::Colour cloth;
 
-    juce::TextButton changeButton, previousButton, nextButton;
+    juce::TextButton changeButton, previousButton, nextButton, removedButton;
+    na::ui::HoldToggleButton compareButton;
+    bool previousInHeader = false;   // when the bottom row is too narrow
     juce::OwnedArray<ChapterRow> rows;
     na::ui::BookKnob knob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAttachment;

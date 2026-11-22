@@ -90,6 +90,12 @@ target_include_directories(NAEncyclopediaFeedbackTests PRIVATE ${CMAKE_CURRENT_S
 target_compile_features(NAEncyclopediaFeedbackTests PRIVATE cxx_std_20)
 add_test(NAME FeedbackTests COMMAND NAEncyclopediaFeedbackTests)
 
+# Unit tests for the listening tools (plain C++)
+add_executable(NAEncyclopediaListeningTests shared/tests/ListeningTests.cpp)
+target_include_directories(NAEncyclopediaListeningTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_features(NAEncyclopediaListeningTests PRIVATE cxx_std_20)
+add_test(NAME ListeningTests COMMAND NAEncyclopediaListeningTests)
+
 # Unit tests for shared/content and shared/chapters (need JUCE core + data structures)
 juce_add_console_app(NAEncyclopediaContentTests PRODUCT_NAME "NAEncyclopediaContentTests")
 target_sources(NAEncyclopediaContentTests PRIVATE

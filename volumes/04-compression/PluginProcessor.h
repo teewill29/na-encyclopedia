@@ -7,6 +7,7 @@
 #include "chapters/Session.h"
 #include "chapters/FeedbackTracker.h"
 #include "dsp/Compressor.h"
+#include "dsp/ListeningTools.h"
 
 #include <array>
 
@@ -72,6 +73,11 @@ public:
     /** Current knob values (as the compressor sees them). */
     na::vol4::CompressorSettings getSettings() const noexcept { return readSettings(); }
 
+    /** Listening tools (FEEDBACK-ENGINE.md §6). Any thread; not saved with the project. */
+    using ListenMode = na::dsp::ListeningTools::Mode;
+    void setListenMode (ListenMode m) noexcept { listenMode.store ((int) m); }
+    ListenMode getListenMode() const noexcept { return (ListenMode) listenMode.load(); }
+
     /** Latest analysis (FEEDBACK-ENGINE.md §2). Message thread only. */
     const na::analysis::Metrics& getMetrics() const noexcept { return metrics.get(); }
     unsigned getDroppedAnalysisBlocks() const noexcept { return taps.getDroppedBlocks(); }
@@ -104,7 +110,11 @@ private:
     // makeup, before Mix), gr (dB), grTarget (dB, instant-attack reduction).
     // Audio thread → FIFO → message thread.
     static constexpr int tapChunk = 1024;
-    std::array<float, tapChunk> tapIn {}, tapOut {}, tapGr {}, tapTarget {}, tapWetGain {};
+    std::array<float, tapChunk> tapIn {}, tapOut {}, tapGr {}, tapTarget {}, tapWetGain {}, removed {};
+    std::array<std::array<float, tapChunk>, 2> dry {};   // input before compression, for the listening tools
+    na::dsp::ListeningTools listening;
+    std::atomic<int> listenMode { 0 };
+    std::atomic<float> compareGainDb { 0.0f };           // level match for Compare, from the analysis
     na::analysis::TapFifo<4> taps { 1u << 17 };   // ~2.7 s at 48 kHz
 
     na::analysis::MetricsEngine metrics;           // message thread only

@@ -13,6 +13,24 @@ void drawIcon (juce::Graphics&, Icon, juce::Rectangle<float> area, juce::Colour,
 enum class ButtonStyle { primary, secondary, text };
 void setStyle (juce::Button&, ButtonStyle, std::optional<Icon> icon = std::nullopt);
 
+/** A toggle you can also hold: a quick click toggles it; holding it longer
+    than 350 ms makes it momentary (on while held, off on release). Used for
+    "Compare at equal level" (UI-REFERENCE §6.2). */
+class HoldToggleButton final : public juce::TextButton
+{
+public:
+    HoldToggleButton() { setClickingTogglesState (false); }
+    std::function<void (bool on)> onToggle;
+
+    void mouseDown (const juce::MouseEvent&) override;
+    void mouseUp (const juce::MouseEvent&) override;
+
+private:
+    void set (bool on);
+    bool wasOn = false;
+    juce::uint32 downAt = 0;
+};
+
 /** The book's LookAndFeel: buttons, dropdowns, menus, the knob. */
 class BookLookAndFeel final : public juce::LookAndFeel_V4
 {

@@ -124,6 +124,7 @@ All user-facing text lives in the content JSON. **Never hard-code copy in C++.**
 
 - **Compare (hold or toggle):** plays the dry input, delayed to match any latency, at a gain equal to the measured `diff` from §2.7 so the two versions are volume matched. Without this, louder always sounds better.
 - **Hear what's removed:** plays `dry - wet_pre_makeup`. That's the part the compressor is taking away, which is what beginners need to hear to understand the knobs.
+- Built in Milestone 7 as `shared/dsp/ListeningTools` (any gain-based processor can use it). Switching crossfades over 20 ms; the Compare gain glides over 50 ms. There's no latency, so no delay is needed. The analysis taps are unaffected: The Reading keeps measuring the real compressed signal while you listen. Compare matches §2.7's `out` (before Mix); with Mix below 100% the match is approximate.
 
 ## 7. Debug view
 
