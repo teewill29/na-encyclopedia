@@ -242,6 +242,38 @@ int main()
         checkNear (m.get().levelDiffDb, 0.0, 0.05, "matched");
     });
 
+    test ("gain staging: peaks, average and crest of a steady sine", [] {
+        MetricsEngine m; m.prepare (sr); int64_t t = 0;
+        // in: 0.5 amplitude sine (-6.02 dBFS peak, -9.03 dBFS RMS); out: half of it
+        feed (m, 4.0, [] (int64_t i) { auto s = sine (i, 220, 0.5); return Frame { s, s * 0.5f, 0 }; }, t);
+        checkNear (m.get().inPeakDb, -6.02, 0.05, "in peak");
+        checkNear (m.get().inAverageDb, -9.03, 0.05, "in average");
+        checkNear (m.get().outPeakDb, -12.04, 0.05, "out peak");
+        checkNear (m.get().outAverageDb, -15.05, 0.05, "out average");
+        checkNear (m.get().crestDb, 3.01, 0.05, "crest of a sine");
+    });
+
+    test ("gain staging: one stray spike doesn't set the peak level", [] {
+        MetricsEngine m; m.prepare (sr); int64_t t = 0;
+        // 0.25 sine (-12 dBFS) with a single full-scale click 2 s in
+        feed (m, 4.0, [] (int64_t i) { float s = i == (int64_t) (2 * sr) ? 1.0f : sine (i, 220, 0.25); return Frame { s, s, 0 }; }, t);
+        checkNear (m.get().inPeakDb, -12.04, 0.1, "95th percentile ignores the click");
+        checkNear (m.get().maxOutPeakDb, 0.0, 0.01, "but the hold catches it");
+    });
+
+    test ("gain staging: the average ignores silence; the hold resets", [] {
+        MetricsEngine m; m.prepare (sr); int64_t t = 0;
+        // 1 s on, 1 s silence, repeating: the average is the level while playing
+        feed (m, 6.0, [] (int64_t i) { const bool on = (i / (int64_t) sr) % 2 == 0;
+            auto s = on ? sine (i, 220, 0.5) : 0.0f; return Frame { s, s, 0 }; }, t);
+        checkNear (m.get().inAverageDb, -9.03, 0.6, "average while playing");
+        check (m.get().holdActiveSeconds > 2.0f, "active time counted");
+        m.resetPeakHold();
+        check (std::isnan (m.get().maxOutPeakDb) && m.get().holdActiveSeconds == 0.0f, "hold reset");
+        feed (m, 1.0, [] (int64_t i) { auto s = sine (i, 220, 0.1); return Frame { s, s, 0 }; }, t);
+        checkNear (m.get().maxOutPeakDb, -20.0, 0.05, "hold restarts from the new audio");
+    });
+
     test ("reset clears everything", [] {
         MetricsEngine m; m.prepare (sr); int64_t t = 0;
         feed (m, 3.0, [] (int64_t i) { auto s = note (i, 0.25, 0.8, 0.2); return Frame { s, s, 4.0f }; }, t);

@@ -443,7 +443,8 @@ void ChapterView::layoutRightPage()
         int msgH = 0;
         for (const auto& m : messages)
             msgH = juce::jmax (msgH, Text::measure (m, F::garamond (messageSize), msgW, 1.4f));
-        const int readingH = readingPad + 18 + readingGap + 26 + msgH + (hasMeters ? readingGap + na::ui::meterHeight : 0) + readingPad;
+        const int hintH = processor.mayHint (chapter["id"].toString()) ? 26 : 0;
+        const int readingH = readingPad + 18 + readingGap + 26 + msgH + hintH + (hasMeters ? readingGap + na::ui::meterHeight : 0) + readingPad;
         reading = { r.getX(), r.getBottom() - bottomRow - gap - readingH, r.getWidth(), readingH };
 
         const int available = reading.getY() - gap - y;
@@ -605,7 +606,7 @@ void ChapterView::paintChapter (juce::Graphics& g)
         if (readout.isEmpty())
             Text::draw (g, text ("readoutWaiting"), block, F::garamond (17.0f, 400, true), P::inkMuted, juce::Justification::centredTop, 1.35f);
         else
-            Text::draw (g, readout, block, F::cinzel (26.0f, 600), P::ink, juce::Justification::centredTop, 1.25f);
+            Text::draw (g, readout, block, F::garamond (22.0f, 600), P::ink, juce::Justification::centredTop, 1.3f);
     }
 
     // Instructions
@@ -667,8 +668,13 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     status.removeFromLeft (24);
     g.setFont (F::garamond (20.0f, 600));
     g.drawText (content.getString ("book.reading.status." + statusKey), status.removeFromTop (26), juce::Justification::centredLeft);
-    Text::draw (g, content.getString ("messages." + messageKey), status, F::garamond (messageSize), P::ink.withMultipliedAlpha (alpha),
-                juce::Justification::topLeft, 1.4f);
+    const int msgUsed = Text::draw (g, content.getString ("messages." + messageKey), status, F::garamond (messageSize),
+                                    P::ink.withMultipliedAlpha (alpha), juce::Justification::topLeft, 1.4f);
+
+    // Optional hint from the volume (e.g. "gain stage it first"): italic, amber
+    if (const auto hint = processor.hintFor (chapterId); hint.isNotEmpty())
+        Text::draw (g, hint, status.withTrimmedTop (msgUsed + 4), F::garamond (15.0f, 400, true), P::warnHigh,
+                    juce::Justification::topLeft, 1.3f);
 
     // Meters, side by side
     if (meters.empty()) return;

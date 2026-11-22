@@ -132,6 +132,19 @@ std::vector<na::book::Meter> CompressionAudioProcessor::metersFor (const juce::S
     return Feedback::metersFor (chapterId, session.getGoal(), metrics.get(), readSettings());
 }
 
+juce::String CompressionAudioProcessor::hintFor (const juce::String& chapterId) const
+{
+    // Chapter I level check (docs/GAIN-STAGING.md §6): a hint, never a status.
+    const auto peak = metrics.get().inPeakDb;
+    if (chapterId != "goal" || std::isnan (peak))
+        return {};
+    if (peak > (float) (double) content.get ("levelCheck.hotAbovePeakDb"))
+        return content.getString ("messages.levelCheck.hot");
+    if (peak < (float) (double) content.get ("levelCheck.quietBelowPeakDb"))
+        return content.getString ("messages.levelCheck.quiet");
+    return {};
+}
+
 juce::StringArray CompressionAudioProcessor::setSoFarParamsFor (const juce::String& chapterId) const
 {
     auto params = BookProcessor::setSoFarParamsFor (chapterId);

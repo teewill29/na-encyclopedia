@@ -41,8 +41,8 @@ Chapter III is deliberately a **teaching** chapter: one knob can't always put bo
 
 Measured on the same taps as Vol. IV (`in` before the trim, `out` after), same 4-second window and activity gate (FEEDBACK-ENGINE §2.1).
 
-- **Peak level:** highest sample peak per 400 ms window, active audio only; report the **95th percentile** of those over the window, so one stray spike doesn't decide the level. (Sample peak, not true peak: at −6 dBFS true peak doesn't matter.)
-- **Average level:** RMS over active audio in the window (unweighted, so "−18 dBFS RMS" means what mixing courses mean).
+- **Peak level:** highest sample peak per **100 ms** window (back to back), active audio only; report the **95th percentile** of those over the window, so one stray spike doesn't decide the level. (Sample peak, not true peak: at −6 dBFS true peak doesn't matter.) *Built with 100 ms, not the 400 ms first drafted: with overlapping 400 ms windows a single click landed in four windows and took over the reading; a test caught it.*
+- **Average level:** RMS over active audio in the window (unweighted, so "−18 dBFS RMS" means what mixing courses mean). "Active" is per millisecond, not the 300 ms gate, so the silence right after a phrase doesn't drag the average down.
 - **Peak to average** (crest factor): peak − average, in dB. Shown as information.
 - **Loudest peak so far:** the highest sample peak since the chapter opened (reset when the chapter is opened or the trim moves by more than 1 dB).
 
@@ -84,7 +84,12 @@ Most of the work is moving Vol. IV's book screens into `shared/` so both volumes
 3. **Chapters + feedback.** Vol. I's chapters, zones and meters; Vol. IV's level check.
 4. **Demo pass.** Both volumes side by side in Logic.
 
-## 9. Questions for the owner / engineer review
+## 9. Tuning on the test vocal (Ride 'Em Cowboy `raw vox.wav`)
+
+- Raw, its loudest sample is −0.1 dBFS and its section peaks reach about −4 dBFS: Chapter I says "about right", Chapter IV would flag the loudest moment.
+- Its peak-to-average gap is about **13.7 dB**. The draft targets imply about 10 dB (peaks −10 to −6, average −20 to −16), so with peaks on target a raw vocal lands as **"very dynamic"** in Chapter III, which is the intended hand-off to Vol. IV. Engineer review: confirm that's the lesson you want, or widen the vocal average targets.
+
+## 10. Questions for the owner / engineer review
 
 1. **Goals:** every instrument has one goal ("Ready to Mix"; Mix Bus: "Into the Master"), so the Title Page shows a single card, already selected. OK, or do you want a second goal (e.g. "Ready to Record" with more headroom)?
 2. **Numbers:** peaks −10 to −6 dBFS for most sources (backing vocals −12 to −8, drum bus −8 to −4, mix bus −6 to −3), averages per instrument as in the content file, headroom at least 3 dB. Engineer to confirm.

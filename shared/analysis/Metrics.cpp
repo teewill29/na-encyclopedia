@@ -87,7 +87,15 @@ void MetricsEngine::prepare (double newSampleRate)
     frontsRing.init (onsetsForMedian, nan);
     residualRing.init (onsetsForMedian, nan);
 
-    scratch.assign (std::max ({ momentaryRing.size(), (size_t) onsetsForMedian, rippleRing.size() }), 0.0f);
+    tickPeakInRing.init (windowTicks, 0.0f);
+    tickPeakOutRing.init (windowTicks, 0.0f);
+    tickPowerInRing.init (windowTicks, 0.0);
+    tickPowerOutRing.init (windowTicks, 0.0);
+    peakWindowTicks = secondsToTicks (peakWindowSeconds);
+    peakWindowInRing.init (momentaryRing.size(), nan);
+    peakWindowOutRing.init (momentaryRing.size(), nan);
+
+    scratch.assign (std::max ({ momentaryRing.size(), (size_t) onsetsForMedian, rippleRing.size(), peakWindowInRing.size() }), 0.0f);
 
     reset();
 }
@@ -133,7 +141,25 @@ void MetricsEngine::reset()
     frontsRing.init (frontsRing.size(), nan);
     residualRing.init (residualRing.size(), nan);
 
+    tickSumSqOut = 0.0;
+    tickPeakIn = tickPeakOut = 0.0f;
+    tickPeakInRing.init (tickPeakInRing.size(), 0.0f);
+    tickPeakOutRing.init (tickPeakOutRing.size(), 0.0f);
+    tickPowerInRing.init (tickPowerInRing.size(), 0.0);
+    tickPowerOutRing.init (tickPowerOutRing.size(), 0.0);
+    peakWindowInRing.init (peakWindowInRing.size(), nan);
+    peakWindowOutRing.init (peakWindowOutRing.size(), nan);
+
     metrics = {};
+    resetPeakHold();
+}
+
+void MetricsEngine::resetPeakHold() noexcept
+{
+    maxOutPeak = 0.0f;
+    holdActiveTicks = 0;
+    metrics.maxOutPeakDb = nan;
+    metrics.holdActiveSeconds = 0.0f;
 }
 
 void MetricsEngine::process (const float* in, const float* out, const float* gr, const float* grTarget, int numSamples) noexcept
@@ -190,6 +216,10 @@ void MetricsEngine::processSample (float in, float out, float gr, float grTarget
     tickGrMin = std::min (tickGrMin, gr);
     tickGrMax = std::max (tickGrMax, gr);
     tickSumSq   += (double) in * in;
+    tickSumSqOut += (double) out * out;
+    tickPeakIn  = std::max (tickPeakIn,  std::abs (in));
+    tickPeakOut = std::max (tickPeakOut, std::abs (out));
+    maxOutPeak  = std::max (maxOutPeak,  std::abs (out));
     tickSumKIn  += kiv * kiv;
     tickSumKOut += kov * kov;
     tickSumGr   += gr;
@@ -228,6 +258,15 @@ void MetricsEngine::finishTick() noexcept
     kInRing.push (tickSumKIn / n);
     kOutRing.push (tickSumKOut / n);
 
+    // Gain staging: per-tick peak and power
+    tickPeakInRing.push (tickPeakIn);
+    tickPeakOutRing.push (tickPeakOut);
+    // Active = the gate is open AND this tick itself has sound (the gate lags by 300 ms)
+    const bool soundNow = gateOpen && powerToDb (meanSq) > (float) gateDb;
+    tickPowerInRing.push (soundNow ? meanSq : -1.0);       // -1 = inactive
+    tickPowerOutRing.push (soundNow ? tickSumSqOut / n : -1.0);
+    if (gateOpen) ++holdActiveTicks;
+
     // Onset rise reference: lowest envelope in each recent tick
     envMinRing.push (tickEnvMinDb);
 
@@ -256,7 +295,8 @@ void MetricsEngine::finishTick() noexcept
     }
 
     tickCount = 0;
-    tickSumSq = tickSumKIn = tickSumKOut = tickSumGr = 0.0;
+    tickSumSq = tickSumKIn = tickSumKOut = tickSumGr = tickSumSqOut = 0.0;
+    tickPeakIn = tickPeakOut = 0.0f;
 }
 
 void MetricsEngine::finishHop() noexcept
@@ -268,6 +308,16 @@ void MetricsEngine::finishHop() noexcept
     const float momentary = mTicks > 0 ? (float) KWeighting::loudness (sum / (double) mTicks) : nan;
     metrics.momentaryInLufs = momentary;
     momentaryRing.push (gateOpen && mTicks == (size_t) momentaryTicks ? momentary : nan);
+
+    // Gain staging: the peak of the last 100 ms (= this hop), while active (GAIN-STAGING §4)
+    {
+        const auto pTicks = std::min ((size_t) peakWindowTicks, tickPeakInRing.filled);
+        float pIn = 0.0f, pOut = 0.0f;
+        for (size_t k = 0; k < pTicks; ++k) { pIn = std::max (pIn, tickPeakInRing.back (k)); pOut = std::max (pOut, tickPeakOutRing.back (k)); }
+        const bool full = pTicks == (size_t) peakWindowTicks;
+        peakWindowInRing.push (gateOpen && full ? toDb (pIn) : nan);
+        peakWindowOutRing.push (gateOpen && full ? toDb (pOut) : nan);
+    }
 
     // §2.7 short-term loudness (3 s), in and out
     double sumIn = 0.0, sumOut = 0.0;
@@ -385,6 +435,31 @@ void MetricsEngine::updateSummary() noexcept
     {
         const auto n = collect (residualRing);
         metrics.residualGrDb = n > 0 ? percentile (scratch.data(), n, 0.5) : nan;
+    }
+
+    // Gain staging (GAIN-STAGING §4): peaks, average, crest, hold
+    {
+        auto n = collect (peakWindowInRing);
+        metrics.inPeakDb = (int) n >= minMomentaryValues ? percentile (scratch.data(), n, peakPercentile) : nan;
+        n = collect (peakWindowOutRing);
+        metrics.outPeakDb = (int) n >= minMomentaryValues ? percentile (scratch.data(), n, peakPercentile) : nan;
+
+        double sumIn = 0.0, sumOut = 0.0;
+        size_t active = 0;
+        for (size_t k = 0; k < tickPowerInRing.filled; ++k)
+            if (const double pIn = tickPowerInRing.back (k); pIn >= 0.0)
+            {
+                sumIn += pIn;
+                sumOut += std::max (0.0, tickPowerOutRing.back (k));
+                ++active;
+            }
+        const bool enough = active * tickSeconds >= minActiveSeconds * 0.5;
+        metrics.inAverageDb  = enough ? powerToDb (sumIn / (double) active) : nan;
+        metrics.outAverageDb = enough ? powerToDb (sumOut / (double) active) : nan;
+        metrics.crestDb = std::isnan (metrics.outPeakDb) || std::isnan (metrics.outAverageDb) ? nan : metrics.outPeakDb - metrics.outAverageDb;
+
+        metrics.maxOutPeakDb = maxOutPeak > 0.0f ? toDb (maxOutPeak) : nan;
+        metrics.holdActiveSeconds = (float) (holdActiveTicks * tickSeconds);
     }
 
     // §2.6 ripple: largest in the window

@@ -41,11 +41,12 @@
       "listenFor": "LISTEN FOR",
       "tryThis": "TRY THIS",
       "target": "Target: {min} to {max}{unit}",
+      "targetHeadroom": "Target: at least {min} dB below 0 dBFS",
       "previous": "‹ Chapter {numeral}",
       "next": "CHAPTER {numeral} ›",
       "debugToggle": "Debug",
       "readoutWaiting": "Play the track to measure it",
-      "readout": "{peak} dBFS peaks · {average} dBFS average"
+      "readout": "{peak} dBFS peaks\n{average} dBFS average"
     },
     "units": { "peakDb": " dBFS", "averageDb": " dBFS", "trimDb": " dB" },
     "reading": {
@@ -80,6 +81,7 @@
     },
     "units": {
       "db": " dB",
+      "dbfs": " dBFS",
       "lufs": " LUFS",
       "percent": "%",
       "seconds": " s"
@@ -101,6 +103,11 @@
       "loudnessIn": "Short-term loudness, in",
       "loudnessOut": "Short-term loudness, out",
       "levelDiff": "Level difference (out − in)",
+      "peakIn": "Peaks, in (95th pct)",
+      "peakOut": "Peaks, out (95th pct)",
+      "averageIn": "Average, in (RMS)",
+      "averageOut": "Average, out (RMS)",
+      "maxPeak": "Loudest peak since reset",
       "dropped": "Dropped analysis blocks"
     }
   },

@@ -99,6 +99,11 @@
       "loudnessIn": "Short-term loudness, in",
       "loudnessOut": "Short-term loudness, out",
       "levelDiff": "Level difference (out − in)",
+      "peakIn": "Peaks, in (95th pct)",
+      "peakOut": "Peaks, out (95th pct)",
+      "averageIn": "Average, in (RMS)",
+      "averageOut": "Average, out (RMS)",
+      "maxPeak": "Loudest peak since reset",
       "dropped": "Dropped analysis blocks"
     }
   },
@@ -167,9 +172,19 @@
     }
   ],
 
+  "levelCheck": {
+    "comment": "Chapter I hint when the incoming level is far off (docs/GAIN-STAGING.md §6). Same numbers as gain-staging.json.",
+    "quietBelowPeakDb": -20,
+    "hotAbovePeakDb": -1
+  },
+
   "messages": {
     "listening": "Keep playing. The plugin needs a few seconds of the loud part to take a reading.",
     "silence": "Nothing is coming in. Press play on a section where this track is playing.",
+    "levelCheck": {
+      "hot": "This track is coming in very hot. Gain stage it first (Volume I) so the compressor's targets line up.",
+      "quiet": "This track is coming in very quiet. Gain stage it first (Volume I) so the threshold sits where the book expects."
+    },
     "needCheck": {
       "needed": "This track jumps around enough to benefit. Let's set it up.",
       "notNeeded": "This track is already pretty even. Light settings or no compression at all may sound best. You can still continue.",

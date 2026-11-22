@@ -25,6 +25,8 @@ public:
     std::vector<na::book::Meter> metersFor (const juce::String& chapterId) const override;
     juce::StringArray setSoFarParamsFor (const juce::String& chapterId) const override;
     bool hasListeningTools() const override { return true; }
+    bool mayHint (const juce::String& chapterId) const override { return chapterId == "goal"; }
+    juce::String hintFor (const juce::String& chapterId) const override;
 
 protected:
     void prepareDsp (double sampleRate) override;

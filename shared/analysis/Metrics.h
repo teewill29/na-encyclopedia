@@ -37,6 +37,15 @@ struct Metrics
     float loudnessInLufs = none;      // §2.7: short-term (3 s) K-weighted loudness
     float loudnessOutLufs = none;
     float levelDiffDb = none;         //        out − in
+
+    // Gain staging (docs/GAIN-STAGING.md §4), unweighted, in dBFS
+    float inPeakDb = none;            // 95th percentile of 100 ms window peaks, active audio
+    float outPeakDb = none;
+    float inAverageDb = none;         // RMS of active audio in the window
+    float outAverageDb = none;
+    float crestDb = none;             // out peak − out average
+    float maxOutPeakDb = none;        // loudest out sample since resetPeakHold()
+    float holdActiveSeconds = 0.0f;   // active audio heard since resetPeakHold()
 };
 
 /** Computes Metrics from four aligned streams: `in` (mono-summed input),
@@ -73,9 +82,14 @@ public:
     static constexpr double residualWindowMs   = 5.0;    // §2.6
     static constexpr double rippleSpanMs       = 20.0;
     static constexpr double rippleQuietAfterOnsetMs = 50.0;
+    static constexpr double peakWindowSeconds  = 0.1;    // gain staging peaks: back-to-back 100 ms windows (GAIN-STAGING §4)
+    static constexpr double peakPercentile     = 0.95;
 
     void prepare (double sampleRate);
     void reset();
+
+    /** Starts the "loudest peak so far" hold over (Vol. I Chapter IV). */
+    void resetPeakHold() noexcept;
 
     void process (const float* in, const float* out, const float* gr, const float* grTarget, int numSamples) noexcept;
 
@@ -132,7 +146,16 @@ private:
 
     // Current tick accumulators
     int    tickCount = 0;
-    double tickSumSq = 0.0, tickSumKIn = 0.0, tickSumKOut = 0.0, tickSumGr = 0.0;
+    double tickSumSq = 0.0, tickSumKIn = 0.0, tickSumKOut = 0.0, tickSumGr = 0.0, tickSumSqOut = 0.0;
+    float  tickPeakIn = 0.0f, tickPeakOut = 0.0f;
+
+    // Gain staging: per-tick peaks and power over the window; window peaks per hop
+    Ring<float>  tickPeakInRing, tickPeakOutRing;
+    Ring<double> tickPowerInRing, tickPowerOutRing;
+    Ring<float>  peakWindowInRing, peakWindowOutRing;   // NaN = inactive
+    int    peakWindowTicks = 400;
+    float  maxOutPeak = 0.0f;
+    int64_t holdActiveTicks = 0;
     float  tickEnvMinDb = 0.0f, tickGrMin = 0.0f, tickGrMax = 0.0f;
 
     // Per-tick rings

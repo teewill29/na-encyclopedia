@@ -33,21 +33,33 @@ void setParam (juce::AudioProcessor& p, const juce::String& id, float value)
             ranged->setValueNotifyingHost (ranged->convertTo0to1 (value));
 }
 
-float tone (int64_t t) { return (float) (0.25 * std::sin (2.0 * pi * 220.0 * (double) t / sr)); }
+float tone (int64_t t, double amp = 0.25) { return (float) (amp * std::sin (2.0 * pi * 220.0 * (double) t / sr)); }
 
-void play (GainStagingProcessor& p, double seconds, int64_t& t)
+/** Plays a sine of `amp` (0.25 = -12 dBFS peak) with the message loop running, like a host. */
+void playAmp (GainStagingProcessor& p, double seconds, double amp, int64_t& t)
 {
     juce::AudioBuffer<float> buffer (2, block);
     juce::MidiBuffer midi;
     for (int b = 0; b < (int) (seconds * sr / block); ++b)
     {
         for (int i = 0; i < block; ++i, ++t)
-            for (int ch = 0; ch < 2; ++ch) buffer.setSample (ch, i, tone (t));
+            for (int ch = 0; ch < 2; ++ch) buffer.setSample (ch, i, tone (t, amp));
         p.processBlock (buffer, midi);
-        juce::MessageManager::getInstance()->runDispatchLoopUntil (2);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
     }
-    juce::MessageManager::getInstance()->runDispatchLoopUntil (100);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
 }
+
+std::unique_ptr<GainStagingProcessor> fresh()
+{
+    auto p = std::make_unique<GainStagingProcessor>();
+    p->setPlayConfigDetails (2, 2, sr, block);
+    p->prepareToPlay (sr, block);
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+    p->beginBook ("leadVocal", "mix");     // peaks -10..-6, average -20..-16, headroom 3
+    return p;
+}
+
 } // namespace
 
 int main()
@@ -138,6 +150,60 @@ int main()
         check (std::abs (q.getValueTree().getRawParameterValue ("trim")->load() + 7.5f) < 0.05f, "trim");
     });
 
+    test ("Chapter I: too hot / about right / too quiet, from the incoming level", [] {
+        const std::pair<double, const char*> cases[] = { { 0.99, "tooHot" }, { 0.25, "aboutRight" }, { 0.01, "tooQuiet" } };
+        for (const auto& [amp, expected] : cases)
+        {
+            auto p = fresh();
+            int64_t t = 0;
+            playAmp (*p, 5.0, amp, t);
+            check (p->getFeedback().zone == expected, std::string ("amp ") + std::to_string (amp) + ": got '" + p->getFeedback().zone + "'");
+            check (p->getSession().isDone ("where"), "any verdict ticks Chapter I");
+            check (p->readoutFor ("where").contains ("dBFS"), "readout: " + p->readoutFor ("where").toStdString());
+        }
+    });
+
+    test ("Chapter II: peaks low / on target / high as the trim moves", [] {
+        const std::pair<float, const char*> cases[] = { { 0.0f, "low" }, { 4.0f, "onTarget" }, { 10.0f, "high" } };
+        for (const auto& [trimDb, expected] : cases)
+        {
+            auto p = fresh();
+            p->openChapter ("peaks");
+            setParam (*p, "trim", trimDb);              // -12 dBFS peaks + trim
+            int64_t t = 0;
+            playAmp (*p, 5.0, 0.25, t);
+            check (p->getFeedback().zone == expected, "trim " + std::to_string (trimDb) + ": got '" + p->getFeedback().zone + "'");
+            check (p->getSession().isDone ("peaks") == (std::string (expected) == "onTarget"), "tick only on target");
+        }
+    });
+
+    test ("Chapter III: a dense signal with safe peaks is a correct finish", [] {
+        auto p = fresh();
+        p->openChapter ("average");
+        setParam (*p, "trim", 4.0f);                    // peaks -8 (on target); a sine's average is only 3 dB lower
+        int64_t t = 0;
+        playAmp (*p, 6.0, 0.25, t);
+        check (p->getFeedback().zone == "high", "very dense, got '" + p->getFeedback().zone + "'");
+        check (p->getSession().isDone ("average"), "ticked: peaks are safe, the advice is to leave it");
+        const auto meters = p->metersFor ("average");
+        check (meters.size() == 2 && std::abs (meters[1].value - 3.01f) < 0.2f, "peak-to-average of a sine ~3 dB");
+    });
+
+    test ("Chapter IV: the loudest peak decides; moving the trim starts over", [] {
+        auto p = fresh();
+        p->openChapter ("headroom");
+        setParam (*p, "trim", 12.0f);                   // -12 + 12 = 0 dBFS: clipping
+        int64_t t = 0;
+        playAmp (*p, 3.0, 0.25, t);
+        check (p->getFeedback().zone == "clipping", "got '" + p->getFeedback().zone + "'");
+        setParam (*p, "trim", 4.0f);                    // a real move: the hold restarts
+        playAmp (*p, 5.0, 0.25, t);
+        check (p->getFeedback().zone != "clipping", "old clip forgotten after the trim move");
+        check (! p->getSession().isDone ("headroom"), "needs 10 s of the song first");
+        playAmp (*p, 8.0, 0.25, t);
+        check (p->getFeedback().zone == "onTarget" && p->getSession().isDone ("headroom"), "safe all the way, got '" + p->getFeedback().zone + "'");
+    });
+
     if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
     {
         auto snap = [&dir] (juce::Component& c, const char* name)
@@ -156,10 +222,18 @@ int main()
         snap (*editor, "v1-title-page.png");
         p.beginBook ("leadVocal", "mix");
         int64_t t = 0;
-        play (p, 3.0, t);
+        playAmp (p, 4.0, 0.9, t);
         snap (*editor, "v1-chapter-1.png");
         p.openChapter ("peaks");
+        setParam (p, "trim", 4.0f);
+        playAmp (p, 4.0, 0.25, t);
         snap (*editor, "v1-chapter-2.png");
+        p.openChapter ("average");
+        playAmp (p, 4.0, 0.25, t);
+        snap (*editor, "v1-chapter-3.png");
+        p.openChapter ("headroom");
+        playAmp (p, 12.0, 0.25, t);
+        snap (*editor, "v1-chapter-4.png");
         p.editorBeingDeleted (editor.get());
         editor.reset();
     }

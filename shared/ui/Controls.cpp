@@ -346,7 +346,9 @@ int drawMeter (juce::Graphics& g, juce::Rectangle<int> area, const MeterSpec& m)
     }
     if (! std::isnan (m.value))
     {
-        const auto zeroX = toX (juce::jlimit (m.rangeMin, m.rangeMax, 0.0f));
+        // Bars grow from 0 (gain reduction, ±dB); level meters entirely below 0 (dBFS) grow from their low end.
+        const auto origin = m.rangeMax <= 0.0f ? m.rangeMin : juce::jlimit (m.rangeMin, m.rangeMax, 0.0f);
+        const auto zeroX = toX (origin);
         const auto valueX = toX (m.value);
         auto fill = juce::Rectangle<float>::leftTopRightBottom (juce::jmin (zeroX, valueX), track.getY() + 3.0f,
                                                               juce::jmax (zeroX, valueX), track.getBottom() - 3.0f);

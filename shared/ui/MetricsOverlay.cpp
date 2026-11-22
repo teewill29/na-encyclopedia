@@ -62,6 +62,11 @@ void MetricsOverlay::paint (juce::Graphics& g)
         { label ("loudnessIn"),      number (m.loudnessInLufs, 1, "lufs") },
         { label ("loudnessOut"),     number (m.loudnessOutLufs, 1, "lufs") },
         { label ("levelDiff"),       number (m.levelDiffDb, 1, "db") },
+        { label ("peakIn"),          number (m.inPeakDb, 1, "db") },
+        { label ("peakOut"),         number (m.outPeakDb, 1, "db") },
+        { label ("averageIn"),       number (m.inAverageDb, 1, "db") },
+        { label ("averageOut"),      number (m.outAverageDb, 1, "db") },
+        { label ("maxPeak"),         number (m.maxOutPeakDb, 1, "db") },
         { label ("dropped"),         juce::String (getDropped ? getDropped() : 0u) },
     };
 
@@ -77,8 +82,8 @@ void MetricsOverlay::paint (juce::Graphics& g)
     g.drawText (content.getString ("debug.title"), inner.removeFromTop (22), juce::Justification::centredLeft);
     inner.removeFromTop (6);
 
-    const int rowH = juce::jmin (26, inner.getHeight() / (int) std::size (rows));
-    g.setFont (juce::FontOptions (14.0f));
+    const int rowH = juce::jmin (24, inner.getHeight() / (int) std::size (rows));
+    g.setFont (juce::FontOptions (13.0f));
     for (const auto& [name, value] : rows)
     {
         auto row = inner.removeFromTop (rowH);

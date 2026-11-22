@@ -443,6 +443,31 @@ int main()
                + std::to_string (rms[0]) + " vs " + std::to_string (rms[1]) + " dB");
     });
 
+    test ("Chapter I level check: gain-stage hint when the input is far off", [] {
+        const std::pair<double, const char*> cases[] = { { 0.99, "hot" }, { 0.05, "quiet" }, { 0.3, "" } };
+        for (const auto& [amp, which] : cases)
+        {
+            CompressionAudioProcessor p;
+            p.setPlayConfigDetails (2, 2, sr, block);
+            p.prepareToPlay (sr, block);
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+            p.beginBook ("leadVocal", "punch");
+            juce::AudioBuffer<float> buf (2, block);
+            juce::MidiBuffer midi;
+            for (int k = 0; k < (int) (4.0 * sr / block); ++k)
+            {
+                for (int i = 0; i < block; ++i)
+                    for (int ch = 0; ch < 2; ++ch) buf.setSample (ch, i, (float) (amp * std::sin (2.0 * pi * 220.0 * (k * block + i) / sr)));
+                p.processBlock (buf, midi);
+                juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
+            }
+            juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+            const auto expected = std::string (which).empty() ? juce::String() : p.getContent().getString (juce::String ("messages.levelCheck.") + which);
+            check (p.hintFor ("goal") == expected, std::string ("amp ") + std::to_string (amp) + ": '" + p.hintFor ("goal").toStdString() + "'");
+            check (p.hintFor ("attack").isEmpty(), "only in Chapter I");
+        }
+    });
+
     if (auto dir = juce::SystemStats::getEnvironmentVariable ("NA_SNAPSHOT_DIR", {}); dir.isNotEmpty())
     {
         auto snap = [&dir] (juce::Component& c, const char* name)

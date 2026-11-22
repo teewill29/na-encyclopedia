@@ -97,6 +97,10 @@ public:
     virtual std::vector<Meter> metersFor (const juce::String& chapterId) const = 0;
     /** Parameters shown in "Set so far" for a finished chapter (default: its knob). */
     virtual juce::StringArray setSoFarParamsFor (const juce::String& chapterId) const;
+    /** An extra line in The Reading (e.g. Vol. IV: "gain stage it first"); empty for none.
+        mayHint() reserves the space so the page doesn't jump when a hint appears. */
+    virtual bool mayHint (const juce::String& chapterId) const { juce::ignoreUnused (chapterId); return false; }
+    virtual juce::String hintFor (const juce::String& chapterId) const { juce::ignoreUnused (chapterId); return {}; }
     /** Listening tools (FEEDBACK-ENGINE.md §6), if the volume has them. */
     virtual bool hasListeningTools() const { return false; }
     void setListenMode (ListenMode m) noexcept { listenMode.store ((int) m); }
