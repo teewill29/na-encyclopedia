@@ -52,7 +52,8 @@
     },
     "units": {
       "hz": " Hz",
-      "db": " dB"
+      "db": " dB",
+      "khz": " kHz"
     },
     "reading": {
       "title": "THE READING",
@@ -149,63 +150,87 @@
   "parameters": {
     "band1Freq": {
       "name": "Band 1 Frequency",
-      "unit": " Hz"
+      "unit": " Hz",
+      "short": "Frequency",
+      "label": "Low cut"
     },
     "band1Gain": {
       "name": "Band 1 Gain",
-      "unit": " dB"
+      "unit": " dB",
+      "short": "Gain"
     },
     "band1Q": {
       "name": "Band 1 Width",
-      "unit": ""
+      "unit": "",
+      "short": "Width"
     },
     "band2Freq": {
       "name": "Band 2 Frequency",
-      "unit": " Hz"
+      "unit": " Hz",
+      "short": "Frequency",
+      "label": "Mud at"
     },
     "band2Gain": {
       "name": "Band 2 Gain",
-      "unit": " dB"
+      "unit": " dB",
+      "short": "Gain",
+      "label": "Mud cut"
     },
     "band2Q": {
       "name": "Band 2 Width",
-      "unit": ""
+      "unit": "",
+      "short": "Width"
     },
     "band3Freq": {
       "name": "Band 3 Frequency",
-      "unit": " Hz"
+      "unit": " Hz",
+      "short": "Frequency",
+      "label": "Tone at"
     },
     "band3Gain": {
       "name": "Band 3 Gain",
-      "unit": " dB"
+      "unit": " dB",
+      "short": "Gain",
+      "label": "Tone boost"
     },
     "band3Q": {
       "name": "Band 3 Width",
-      "unit": ""
+      "unit": "",
+      "short": "Width"
     },
     "band4Freq": {
       "name": "Band 4 Frequency",
-      "unit": " Hz"
+      "unit": " Hz",
+      "short": "Frequency",
+      "label": "Harsh at"
     },
     "band4Gain": {
       "name": "Band 4 Gain",
-      "unit": " dB"
+      "unit": " dB",
+      "short": "Gain",
+      "label": "Harsh cut"
     },
     "band4Q": {
       "name": "Band 4 Width",
-      "unit": ""
+      "unit": "",
+      "short": "Width"
     },
     "band5Freq": {
       "name": "Band 5 Frequency",
-      "unit": " Hz"
+      "unit": " Hz",
+      "short": "Frequency",
+      "label": "Air at"
     },
     "band5Gain": {
       "name": "Band 5 Gain",
-      "unit": " dB"
+      "unit": " dB",
+      "short": "Gain",
+      "label": "Air boost"
     },
     "band5Q": {
       "name": "Band 5 Width",
-      "unit": ""
+      "unit": "",
+      "short": "Width"
     },
     "band1On": {
       "name": "Band 1 On",
@@ -245,7 +270,8 @@
     },
     "output": {
       "name": "Output",
-      "unit": " dB"
+      "unit": " dB",
+      "label": "Output"
     }
   },
   "chapters": [
@@ -291,7 +317,7 @@
       "title": "Shape the Tone",
       "subtitle": "Small moves, wide curves",
       "intro": "Now the problems are fixed, gently push the tone toward your goal. Good boosts are small and wide: a few dB with a broad curve.",
-      "doThis": "Set the band inside the shaded area. Bring the gain up slowly until the track sounds {goalName}, then back off a touch.",
+      "doThis": "Set the band inside the shaded area. Bring the gain up slowly until you hear “{goalName}”, then back off a touch.",
       "listenFor": "{goal.listenFor}"
     },
     {

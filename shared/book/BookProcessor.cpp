@@ -169,6 +169,15 @@ void BookProcessor::updateFeedback()
         session.setDone (chapter, true);
 }
 
+Template::Lookup BookProcessor::templateLookup() const
+{
+    const auto goal = session.getGoal();
+    const auto instrument = session.getInstrument();
+    return Template::chain (Template::forValues ({ { "instrumentName", instrument["name"].toString() },
+                                                   { "goalName", goal["name"].toString() } }),
+                            Template::chain (Template::forGoal (goal), Template::forGoal (instrument)));
+}
+
 juce::StringArray BookProcessor::setSoFarParamsFor (const juce::String& chapterId) const
 {
     juce::StringArray params;

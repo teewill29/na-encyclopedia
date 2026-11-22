@@ -1,6 +1,8 @@
 #pragma once
 
 #include "BookProcessor.h"
+
+#include <array>
 #include "ui/Controls.h"
 
 // The book's two screens (docs/UI-REFERENCE.md §6). Both are transparent and
@@ -105,6 +107,10 @@ private:
     juce::OwnedArray<ChapterRow> rows;
     na::ui::BookKnob knob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> knobAttachment;
+    std::array<na::ui::BookKnob, 2> extraKnobs;
+    std::array<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>, 2> extraAttachments;
+    juce::StringArray extraParams;
+    bool hasSpectrum = false;
 
     juce::var chapter, goal;
     juce::String attachedChapter, knobName, targetCaption;
@@ -113,6 +119,9 @@ private:
     juce::Rectangle<int> header, titleArea, subtitleArea, introArea, knobBlock, instructions, reading, setSoFarArea;
     float introSize = 18.0f, instructionSize = 17.0f, messageSize = 17.0f;
     int knobSize = 132, readingPad = 16, readingGap = 12;
+    static constexpr int extraKnobSize = 56, extraSlot = 16 + 56 + 22 + 10;   // name, knob, value, gap
+    static constexpr int spectrumHeight = 132;
+    static constexpr float spectrumSplit = 0.42f;                            // status column share of The Reading
 };
 
 } // namespace na::book

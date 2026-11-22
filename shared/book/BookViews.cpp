@@ -1,5 +1,6 @@
 #include "BookViews.h"
 #include "content/Template.h"
+#include "ui/Spectrum.h"
 
 #include <cmath>
 
@@ -310,6 +311,8 @@ ChapterView::ChapterView (BookProcessor& p)
 
     knob.setActive (true);
     addChildComponent (knob);
+    for (auto& k : extraKnobs)
+        addChildComponent (k);
 
     startTimerHz (15); // live values: The Reading, Chapter I readout, Set so far
 }
@@ -343,7 +346,7 @@ juce::String ChapterView::fill (const juce::String& templ, std::initializer_list
 
 juce::String ChapterView::chapterText (const char* field) const
 {
-    return na::Template::fill (chapter[field].toString(), na::Template::forGoal (goal));
+    return na::Template::fill (chapter[field].toString(), processor.templateLookup());
 }
 
 juce::String ChapterView::doThisText() const
@@ -384,8 +387,22 @@ void ChapterView::refresh()
         knob.setVisible (paramId != nullptr);
         if (paramId != nullptr)
             knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.getValueTree(), paramId, knob);
+
+        extraParams = paramId != nullptr ? processor.extraKnobsFor (current) : juce::StringArray();
+        for (size_t i = 0; i < extraKnobs.size(); ++i)
+        {
+            extraAttachments[i].reset();
+            const bool used = (int) i < extraParams.size();
+            extraKnobs[i].setVisible (used);
+            if (used)
+                extraAttachments[i] = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (
+                    processor.getValueTree(), extraParams[(int) i], extraKnobs[i]);
+        }
     }
-    knobName = paramId != nullptr ? content.getString (juce::String ("parameters.") + paramId + ".name").toUpperCase() : juce::String();
+    // Knob title: the parameter's short name if the content gives one, else its full name
+    knobName = paramId != nullptr ? content.getString (juce::String ("parameters.") + paramId + ".short",
+                                                       content.getString (juce::String ("parameters.") + paramId + ".name")).toUpperCase()
+                                  : juce::String();
     targetCaption = processor.targetCaptionFor (current);
 
     // Listening tools only in volumes that have them
@@ -409,18 +426,25 @@ void ChapterView::layoutRightPage()
     // Right page padding 36 / 44 / 30 (mockup). Long chapters step the text
     // down (never below 15 px) instead of overlapping.
     const auto r = rightPage().withTrimmedTop (36).withTrimmedBottom (30).reduced (44, 0);
-    const int bottomRow = 46, knobW = 170, colGap = 32;
+    const int bottomRow = 46, colGap = 32;
+    // Chapters with extra knobs get a wider knob block: main knob left, extras stacked right.
+    const int knobW = extraParams.isEmpty() ? 170 : 250;
     int gap = 18;
+    {
+        SpectrumData probe;
+        hasSpectrum = processor.spectrumFor (chapter["id"].toString(), probe);
+    }
 
     // Every message this chapter can show, so The Reading's height never jumps.
     juce::StringArray messages { content.getString ("messages.silence"), content.getString ("messages.listening") };
     if (auto* group = content.get ("messages." + processor.messageGroupFor (chapter["id"].toString())).getDynamicObject())
         for (const auto& prop : group->getProperties())
             messages.add (prop.value.toString());
-    const int captionH = Text::measure (targetCaption, F::garamond (14.0f, 400, true), knobW, 1.3f);
+    const int mainW = extraParams.isEmpty() ? knobW : 160;
+    const int captionH = Text::measure (targetCaption, F::garamond (14.0f, 400, true), mainW, 1.3f);
     const int knobExtras = 16 + 8 + 4 + 16 + 4 + 32 + 4 + captionH;    // name, range, value, target
     knobSize = 132;
-    const bool hasMeters = ! processor.metersFor (chapter["id"].toString()).empty();
+    const bool hasMeters = ! hasSpectrum && ! processor.metersFor (chapter["id"].toString()).empty();
 
     readingPad = 16; readingGap = 12;
     for (int attempt = 0; attempt < 24; ++attempt)
@@ -439,12 +463,15 @@ void ChapterView::layoutRightPage()
             if (body.isNotEmpty())
                 instrH += (instrH > 0 ? 14 : 0) + 17 + 4 + Text::measure (body, F::garamond (instructionSize), instrW, bodyLine);
 
-        const int msgW = r.getWidth() - 40 - 24;
+        // With a spectrum, status + message take the left column of The Reading.
+        const int msgW = hasSpectrum ? (int) ((r.getWidth() - 40) * spectrumSplit) - 24 : r.getWidth() - 40 - 24;
         int msgH = 0;
         for (const auto& m : messages)
             msgH = juce::jmax (msgH, Text::measure (m, F::garamond (messageSize), msgW, 1.4f));
         const int hintH = processor.mayHint (chapter["id"].toString()) ? 26 : 0;
-        const int readingH = readingPad + 18 + readingGap + 26 + msgH + hintH + (hasMeters ? readingGap + na::ui::meterHeight : 0) + readingPad;
+        const int statusH = 26 + msgH + hintH;
+        const int bodyH = hasSpectrum ? juce::jmax (statusH, spectrumHeight) : statusH + (hasMeters ? readingGap + na::ui::meterHeight : 0);
+        const int readingH = readingPad + 18 + readingGap + bodyH + readingPad;
         reading = { r.getX(), r.getBottom() - bottomRow - gap - readingH, r.getWidth(), readingH };
 
         const int available = reading.getY() - gap - y;
@@ -469,7 +496,13 @@ void ChapterView::layoutRightPage()
 
     // The slider is larger than the knob so the gold ring's shadow isn't clipped.
     const int pad = 18;
-    knob.setBounds (knobBlock.getCentreX() - knobSize / 2 - pad, knobBlock.getY() + 16 + 8 - pad, knobSize + 2 * pad, knobSize + 2 * pad);
+    const int mainCentreX = knobBlock.getX() + mainW / 2;
+    knob.setBounds (mainCentreX - knobSize / 2 - pad, knobBlock.getY() + 16 + 8 - pad, knobSize + 2 * pad, knobSize + 2 * pad);
+
+    // Extra knobs: a column to the right of the main knob, each with name above and value below
+    const int extraX = knobBlock.getX() + mainW + 8, extraW = knobW - mainW - 8;
+    for (int i = 0; i < extraParams.size() && i < (int) extraKnobs.size(); ++i)
+        extraKnobs[(size_t) i].setBounds (extraX + (extraW - extraKnobSize) / 2, knobBlock.getY() + i * extraSlot + 16, extraKnobSize, extraKnobSize);
 }
 
 void ChapterView::resized()
@@ -552,9 +585,11 @@ void ChapterView::paintContents (juce::Graphics& g)
                       knobStartAngle + param->getValue() * (knobEndAngle - knobStartAngle), false);
             cell.removeFromLeft (10);
             g.setColour (P::inkMuted); g.setFont (F::garamond (14.0f));
-            g.drawFittedText (param->getName (64), cell.removeFromTop (22).withTrimmedTop (4), juce::Justification::centredLeft, 1, 0.75f);
+            // "Set so far" label: the content's descriptive label if any ("Mud cut"), else the name
+            g.drawFittedText (content.getString ("parameters." + params[i] + ".label", param->getName (64)),
+                              cell.removeFromTop (22).withTrimmedTop (4), juce::Justification::centredLeft, 1, 0.75f);
             g.setColour (P::ink); g.setFont (F::garamond (17.0f, 600));
-            g.drawText (param->getCurrentValueAsText(), cell.removeFromTop (22), juce::Justification::centredLeft);
+            g.drawFittedText (param->getCurrentValueAsText(), cell.removeFromTop (22), juce::Justification::centredLeft, 1, 0.7f);
         }
 }
 
@@ -578,25 +613,38 @@ void ChapterView::paintChapter (juce::Graphics& g)
     Text::draw (g, chapterText ("intro"), introArea, F::garamond (introSize), juce::Colour (0xFF3A2E22),
                 juce::Justification::topLeft, bodyLine);
 
-    // Knob block: name, knob, range labels, value, target
+    // Knob block: name, knob, range labels, value, target (main knob's column)
     if (knob.isVisible())
     {
-        eyebrow (g, knobName, knobBlock.withHeight (16), 12.0f, 0.22f, P::labelInk, juce::Justification::centred);
+        const auto main = extraParams.isEmpty() ? knobBlock : knobBlock.withWidth (160);
+        eyebrow (g, knobName, main.withHeight (16), 12.0f, 0.22f, P::labelInk, juce::Justification::centred);
         auto* param = processor.getValueTree().getParameter (processor.knobParamFor (session.getCurrentChapterId()));
         int y = knob.getBottom() - 18 + 4;
         if (param != nullptr)
         {
-            auto range = juce::Rectangle<int> (knobBlock.getCentreX() - 75, y, 150, 16);
+            auto range = juce::Rectangle<int> (main.getCentreX() - 75, y, 150, 16);
             g.setColour (P::inkMuted); g.setFont (F::garamond (13.0f));
             g.drawText (param->getText (0.0f, 32), range, juce::Justification::centredLeft);
             g.drawText (param->getText (1.0f, 32), range, juce::Justification::centredRight);
             y += 16 + 4;
             g.setColour (P::ink); g.setFont (F::cinzel (26.0f, 600));
-            g.drawText (param->getCurrentValueAsText(), knobBlock.withY (y).withHeight (32), juce::Justification::centred);
+            g.drawFittedText (param->getCurrentValueAsText(), main.withY (y).withHeight (32), juce::Justification::centred, 1, 0.7f);
             y += 32 + 4;
         }
-        Text::draw (g, targetCaption, knobBlock.withY (y).withHeight (60), F::garamond (14.0f, 400, true), P::inkSoft,
+        Text::draw (g, targetCaption, main.withY (y).withHeight (60), F::garamond (14.0f, 400, true), P::inkSoft,
                     juce::Justification::centredTop, 1.3f);
+
+        // Extra knobs: name above, value below
+        for (int i = 0; i < extraParams.size() && i < (int) extraKnobs.size(); ++i)
+            if (auto* extra = processor.getValueTree().getParameter (extraParams[i]))
+            {
+                const auto& k = extraKnobs[(size_t) i];
+                const auto column = juce::Rectangle<int> (main.getRight() + 8, k.getY() - 16, knobBlock.getRight() - main.getRight() - 8, extraSlot);
+                eyebrow (g, content.getString ("parameters." + extraParams[i] + ".short", extra->getName (32)).toUpperCase(),
+                         column.withHeight (14), 10.0f, 0.16f, P::labelInk, juce::Justification::centred);
+                g.setColour (P::ink); g.setFont (F::garamond (15.0f, 600));
+                g.drawFittedText (extra->getCurrentValueAsText(), column.withY (k.getBottom() + 2).withHeight (20), juce::Justification::centred, 1, 0.75f);
+            }
     }
     else
     {
@@ -661,8 +709,18 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     g.fillEllipse ((float) head.getRight() - Text::width (liveText, liveFont) - 14.0f, (float) head.getCentreY() - 4.0f, 8.0f, 8.0f);
     inner.removeFromTop (readingGap);
 
+    // With a spectrum: status on the left, spectrum on the right (docs/EQ.md §6)
+    if (hasSpectrum)
+    {
+        SpectrumData spectrum;
+        processor.spectrumFor (chapterId, spectrum);
+        auto spectrumArea = inner.withTrimmedLeft ((int) (inner.getWidth() * spectrumSplit) + 16);
+        drawSpectrum (g, spectrumArea.toFloat(), spectrum, cloth.withMultipliedAlpha (alpha), content.getString ("book.units.khz"));
+        inner = inner.withWidth ((int) (inner.getWidth() * spectrumSplit));
+    }
+
     // Status: dot + label (in words, never colour alone) + coaching message
-    auto status = inner.removeFromTop (inner.getHeight() - (meters.empty() ? 0 : readingGap + na::ui::meterHeight));
+    auto status = inner.removeFromTop (inner.getHeight() - (meters.empty() || hasSpectrum ? 0 : readingGap + na::ui::meterHeight));
     g.setColour (toneColour.withMultipliedAlpha (alpha));
     g.fillEllipse ((float) status.getX(), (float) status.getY() + 7.0f, 12.0f, 12.0f);
     status.removeFromLeft (24);
@@ -677,7 +735,7 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
                     juce::Justification::topLeft, 1.3f);
 
     // Meters, side by side
-    if (meters.empty()) return;
+    if (meters.empty() || hasSpectrum) return;
     inner.removeFromTop (readingGap);
     const int gap = 24;
     const int w = (inner.getWidth() - gap * ((int) meters.size() - 1)) / (int) meters.size();

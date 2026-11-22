@@ -17,6 +17,7 @@ concurrency:
 env:
   VOLUMES: |
     01-gain-staging|NAEncyclopediaGainStaging|NA Encyclopedia I Gain Staging|NE01|com.novelteeaudio.naencyclopedia.gainstaging|NAEncyclopedia-I-GainStaging-pkg
+    03-eq|NAEncyclopediaEQ|NA Encyclopedia III EQ|NE03|com.novelteeaudio.naencyclopedia.eq|NAEncyclopedia-III-EQ-pkg
     04-compression|NAEncyclopediaCompression|NA Encyclopedia IV Compression|NE04|com.novelteeaudio.naencyclopedia.compression|NAEncyclopedia-IV-Compression-pkg
   MANUFACTURER: Tywl
   COMPANY: Noveltee Audio
@@ -151,6 +152,14 @@ jobs:
         with:
           name: NAEncyclopedia-I-GainStaging-pkg
           path: build/pkg/01-gain-staging/*.pkg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Vol. III installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NAEncyclopedia-III-EQ-pkg
+          path: build/pkg/03-eq/*.pkg
           if-no-files-found: error
           retention-days: 30
 

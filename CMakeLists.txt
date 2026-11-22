@@ -47,6 +47,7 @@ target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Style.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/BookFrame.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Controls.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Spectrum.cpp
 )
 
 # The book's fonts (Cinzel, EB Garamond; SIL OFL), embedded. See assets/fonts/README.md.
@@ -124,4 +125,5 @@ add_test(NAME ContentTests COMMAND NAEncyclopediaContentTests)
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
 add_subdirectory(volumes/01-gain-staging)
+add_subdirectory(volumes/03-eq)
 add_subdirectory(volumes/04-compression)

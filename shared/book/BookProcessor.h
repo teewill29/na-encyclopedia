@@ -8,6 +8,7 @@
 #include "chapters/FeedbackTracker.h"
 #include "dsp/ListeningTools.h"
 #include "Rules.h"
+#include "content/Template.h"
 
 #include <array>
 #include <functional>
@@ -83,6 +84,13 @@ public:
     // ── Volume rules (message thread) ───────────────────────────────────────
     /** The chapter's main knob (parameter ID), or nullptr. */
     virtual const char* knobParamFor (const juce::String& chapterId) const = 0;
+    /** Up to two smaller knobs shown beside the main one (e.g. an EQ band's Gain and Width). */
+    virtual juce::StringArray extraKnobsFor (const juce::String& chapterId) const { juce::ignoreUnused (chapterId); return {}; }
+    /** A spectrum for The Reading instead of meters (docs/EQ.md §6); false for none. */
+    virtual bool spectrumFor (const juce::String& chapterId, SpectrumData& out) const { juce::ignoreUnused (chapterId, out); return false; }
+    /** Fills {placeholders} in chapter text: the goal's fields, then the instrument's,
+        plus {instrumentName} and {goalName}. */
+    virtual Template::Lookup templateLookup() const;
     /** Caption under the knob ("Target: 15–30 ms"), or empty. */
     virtual juce::String targetCaptionFor (const juce::String& chapterId) const = 0;
     /** Text in place of a knob for chapters without one ("9.4 dB of movement"); empty while waiting. */
