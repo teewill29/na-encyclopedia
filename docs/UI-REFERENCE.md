@@ -166,6 +166,8 @@ No main knob. The knob block becomes a large **dynamic range** readout ("9.4 dB 
 
 ## 8. Volume colors (cloth + spine plate)
 
+**Rule (owner, Vol. I kickoff):** a volume's cloth boards and its spine label plate are always the same colour: one `book.cloth` value per volume in its content file, used for both. Never colour them separately. The boards carry the weave texture; the plate stays a flat fill (no texture).
+
 | Vol. | Topic | Cloth |
 |---|---|---|
 | I | Gain Staging | `#3A3F44` slate |

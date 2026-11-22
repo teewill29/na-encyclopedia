@@ -132,7 +132,7 @@ void BookFrame::paintSpine (juce::Graphics& g, juce::Rectangle<float> r, const S
     yb -= 12.0f + 78.0f;
     {   // Label plate: 64 × 78, cloth colour, double gold border (1 px, 3 px gap)
         auto plate = juce::Rectangle<float> (cx - 32.0f, yb, 64.0f, 78.0f);
-        g.setColour (clothColour);
+        g.setColour (clothColour);   // same colour as the cloth boards, flat (no weave)
         g.fillRect (plate);
         g.setColour (Palette::gold);
         g.drawRect (plate, 1.0f);
