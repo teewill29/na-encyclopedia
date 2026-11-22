@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "series": "NA Encyclopedia",
+  "brand": "Noveltee Audio",
+  "volume": 1,
+  "volumeNumeral": "I",
+  "topic": "Gain Staging",
+  "edition": "First Edition",
+  "status": "DRAFT: every number and line here is a starting point. Verify against 2-3 sources and an engineer review before release.",
+
+  "book": {
+    "cloth": "#3A3F44",
+    "spine": { "vol": "VOL." },
+    "titlePage": {
+      "brand": "NOVELTEE AUDIO",
+      "series": "NA Encyclopedia",
+      "topic": "Gain Staging",
+      "volume": "VOLUME I",
+      "edition": "First Edition",
+      "eyebrow": "BEFORE WE BEGIN",
+      "heading": "Set the scene",
+      "intro": "Tell the book what you're working on. Every target adapts to your pick.",
+      "instrumentQuestion": "What are you setting the level for?",
+      "goalQuestion": "Where is it headed?",
+      "begin": "BEGIN CHAPTER I",
+      "footnote": "You can change these anytime from the Contents page.",
+      "gainNote": {
+        "eyebrow": "WHY THIS COMES FIRST",
+        "body": "Every plugin after this one reacts to how loud the sound arrives. Get the level right here and the compressor, EQ and effects all behave the way the books describe."
+      }
+    },
+    "chapterPage": {
+      "contents": "CONTENTS",
+      "setup": "{instrument} · {goal}",
+      "change": "Change",
+      "readingNow": "reading now",
+      "setSoFar": "SET SO FAR",
+      "eyebrow": "CHAPTER {numeral}",
+      "counter": "{current} of {total}",
+      "doThis": "DO THIS",
+      "listenFor": "LISTEN FOR",
+      "tryThis": "TRY THIS",
+      "target": "Target: {min}–{max}{unit}",
+      "previous": "‹ Chapter {numeral}",
+      "next": "CHAPTER {numeral} ›",
+      "debugToggle": "Debug"
+    },
+    "units": { "peakDb": " dBFS", "averageDb": " dBFS", "trimDb": " dB" },
+    "reading": {
+      "title": "THE READING",
+      "live": "Listening live",
+      "idle": "Waiting for playback",
+      "meterTarget": "Target zone: {min}–{max}{unit}",
+      "status": {
+        "silence": "Waiting for audio",
+        "listening": "Listening…",
+        "where": { "tooQuiet": "Too quiet", "aboutRight": "About right", "tooHot": "Too hot" },
+        "peaks": { "low": "Too quiet", "high": "Too hot", "onTarget": "Right on target" },
+        "average": { "low": "Very dynamic", "high": "Very dense", "onTarget": "Right on target" },
+        "headroom": { "clipping": "Clipping", "tight": "Too tight", "onTarget": "Safe all the way" }
+      },
+      "meters": {
+        "peak": "Peaks",
+        "average": "Average",
+        "crest": "Peak to average",
+        "maxPeak": "Loudest peak so far"
+      }
+    }
+  },
+
+  "parameters": {
+    "trim": { "name": "Trim", "unit": " dB" }
+  },
+
+  "chapters": [
+    {
+      "id": "where",
+      "numeral": "I",
+      "title": "Where You Are",
+      "intro": "Gain staging means setting how loud a sound is before it reaches your other plugins. Too quiet and you're mixing noise. Too hot and plugins clip and distort. First, let's see where this track sits.",
+      "doThis": "Play the loudest section of the track for about ten seconds. Leave the trim alone for now.",
+      "listenFor": "Nothing yet. This chapter is about the meters, not your ears. A good level doesn't sound different, it just behaves better further down the chain."
+    },
+    {
+      "id": "peaks",
+      "numeral": "II",
+      "title": "Peaks",
+      "subtitle": "The loudest moments",
+      "intro": "Peaks are the loudest instants in the track. Digital audio clips hard at 0 dBFS, and many plugins start to misbehave well before that, so we leave room.",
+      "doThis": "Play the loudest part. Turn the trim until the Peaks meter sits in the target zone, {peakDb.min} to {peakDb.max} dBFS.",
+      "listenFor": "The same sound, just louder or quieter. If it starts to crunch or distort as you turn up, you've gone too far.",
+      "tryThis": "Turn the trim all the way up for a second and listen for the distortion. That's clipping. Then bring it back."
+    },
+    {
+      "id": "average",
+      "numeral": "III",
+      "title": "Average",
+      "subtitle": "How loud it feels",
+      "intro": "The average level is how loud the track feels over time. The gap between the peaks and the average shows how dynamic the track is, and that gap decides what you do next.",
+      "doThis": "Keep playing. Leave the trim where Chapter II put it and read where the average lands. Only nudge the trim if the peaks stay in their zone.",
+      "listenFor": "Whether the quiet parts disappear under the loud ones. A big gap between peaks and average is what a compressor is for."
+    },
+    {
+      "id": "headroom",
+      "numeral": "IV",
+      "title": "Headroom",
+      "subtitle": "The whole song, not just one bar",
+      "intro": "A level that's right in the verse can clip in the chorus. Headroom is the space left between your loudest peak and 0 dBFS, across the whole song.",
+      "doThis": "Play the track from start to finish, or at least its loudest chorus. The meter remembers the loudest peak it hears.",
+      "listenFor": "The loudest moment of the song: the big chorus, the last hit, the shout. That's the one that has to fit."
+    }
+  ],
+
+  "messages": {
+    "listening": "Keep playing. The plugin needs a few seconds of the track to take a reading.",
+    "silence": "Nothing is coming in. Press play on a section where this track is playing.",
+    "where": {
+      "tooQuiet": "This track is coming in quiet. Chapter II will bring it up to a healthy level.",
+      "aboutRight": "This track is already in the right neighbourhood. Chapter II will fine-tune it.",
+      "tooHot": "This track is coming in hot, close to clipping. Chapter II will bring it down to a safe level."
+    },
+    "peaks": {
+      "low": "Peaks are still low. Turn the trim up.",
+      "high": "Peaks are too close to clipping. Turn the trim down.",
+      "onTarget": "Peaks are in the zone. Turn to Chapter III."
+    },
+    "average": {
+      "low": "This track is very dynamic: big peaks, quieter average. Keep the peaks safe. A compressor (Volume IV) is how you bring the average up.",
+      "high": "This track is very dense: the average sits close to the peaks. That's normal for distorted guitars and finished mixes. Keep the peaks safe.",
+      "onTarget": "Peaks and average are both where they should be. Turn to Chapter IV."
+    },
+    "headroom": {
+      "clipping": "Something hit 0 dBFS. Turn the trim down and play that section again.",
+      "tight": "The loudest moment gets too close to 0 dBFS. Turn the trim down a little.",
+      "onTarget": "Safe all the way through. This track is gain staged."
+    }
+  },
+
+  "levelCheck": {
+    "comment": "Used by other volumes (e.g. Vol. IV Chapter I) to warn when the incoming level is far off.",
+    "quietBelowPeakDb": -20,
+    "hotAbovePeakDb": -1
+  },
+
+  "instruments": [
+    { "id": "leadVocal", "name": "Lead Vocal", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -20, "max": -16 }, "headroomMinDb": 3 } ] },
+    { "id": "backingVocals", "name": "Backing Vocals", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -12, "max": -8 }, "averageDb": { "min": -22, "max": -18 }, "headroomMinDb": 3 } ] },
+    { "id": "acousticGuitar", "name": "Acoustic Guitar", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -20, "max": -16 }, "headroomMinDb": 3 } ] },
+    { "id": "electricClean", "name": "Electric Guitar (Clean)", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -20, "max": -16 }, "headroomMinDb": 3 } ] },
+    { "id": "electricDistorted", "name": "Electric Guitar (Distorted)", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -16, "max": -12 }, "headroomMinDb": 3 } ] },
+    { "id": "bass", "name": "Bass", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -18, "max": -14 }, "headroomMinDb": 3 } ] },
+    { "id": "kick", "name": "Kick", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -24, "max": -18 }, "headroomMinDb": 3 } ] },
+    { "id": "snare", "name": "Snare", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -24, "max": -18 }, "headroomMinDb": 3 } ] },
+    { "id": "drumBus", "name": "Drum Bus", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -8, "max": -4 }, "averageDb": { "min": -20, "max": -16 }, "headroomMinDb": 3 } ] },
+    { "id": "pianoKeys", "name": "Piano / Keys", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -22, "max": -16 }, "headroomMinDb": 3 } ] },
+    { "id": "mixBus", "name": "Mix Bus", "goals": [
+      { "id": "master", "name": "Into the Master", "tagline": "Room left for mastering",
+        "peakDb": { "min": -6, "max": -3 }, "averageDb": { "min": -18, "max": -12 }, "headroomMinDb": 3 } ] },
+    { "id": "spokenVoice", "name": "Spoken Voice / Podcast", "goals": [
+      { "id": "mix", "name": "Ready to Mix", "tagline": "A healthy level for every plugin after this",
+        "peakDb": { "min": -10, "max": -6 }, "averageDb": { "min": -20, "max": -16 }, "headroomMinDb": 3 } ] }
+  ]
+}
