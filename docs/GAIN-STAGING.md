@@ -1,4 +1,4 @@
-# Vol. I, Gain Staging: spec (DRAFT for owner review)
+# Vol. I, Gain Staging: spec (built; content DRAFT for engineer review)
 
 Second volume to be built (first in the set). Shares the book, the chapter engine, the analysis and the UI with Vol. IV. Content: [`content/gain-staging.json`](../content/gain-staging.json). Every number in it is a starting point for the engineer review, like Vol. IV's.
 
@@ -75,7 +75,7 @@ Exactly the Vol. IV book (UI-REFERENCE), slate cloth, Vol. I plate. The Reading'
 
 Meter range −48 to 0 dBFS.
 
-## 8. Build plan
+## 8. Build plan (done: steps 1–4 tested in Logic by the owner)
 
 Most of the work is moving Vol. IV's book screens into `shared/` so both volumes use them, which means **Vol. IV gets retested** in the same build.
 

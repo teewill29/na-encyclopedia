@@ -3,7 +3,7 @@
 Working notes for Claude Code in this repo.
 
 ## What this is
-NA Encyclopedia by Noveltee Audio: beginner teaching plugins, one per mixing tool. Built: **Vol. IV, Compression** (Milestones 1–7). In development: **Vol. I, Gain Staging** (`docs/GAIN-STAGING.md`). Both run on the shared book in `shared/book`. JUCE 8 + CMake, AU first, VST3 too. Read `README.md` first.
+NA Encyclopedia by Noveltee Audio: beginner teaching plugins, one per mixing tool. Built and tested in Logic: **Vol. IV, Compression** and **Vol. I, Gain Staging** (`docs/GAIN-STAGING.md`). Ship prep (signing, licensing, content review) is on hold. Both run on the shared book in `shared/book`. JUCE 8 + CMake, AU first, VST3 too. Read `README.md` first.
 
 ## Read before working on…
 - Anything visual → `docs/UI-REFERENCE.md`
