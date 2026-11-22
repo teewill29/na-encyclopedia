@@ -43,10 +43,10 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 
 | Vol. | Topic | Status |
 |---|---|---|
-| I | Gain Staging | Planned |
+| I | Gain Staging | In development (spec: [`docs/GAIN-STAGING.md`](docs/GAIN-STAGING.md)) |
 | II | Balance & Panning | Planned |
 | III | EQ | Planned |
-| **IV** | **Compression** | **In development** |
+| **IV** | **Compression** | **Built (Milestones 1–7), ship prep on hold** |
 | V | De-essing | Planned |
 | VI | Gating | Planned |
 | VII | Reverb | Planned |
@@ -93,6 +93,7 @@ na-encyclopedia/
 ├── CLAUDE.md
 ├── README.md
 ├── content/
+│   ├── gain-staging.json       # all copy, targets and goals for Vol. I (DRAFT)
 │   └── compression.json        # all copy, targets and goals for Vol. IV
 ├── docs/
 │   ├── UI-REFERENCE.md         # visual spec
@@ -108,6 +109,7 @@ na-encyclopedia/
 │   ├── ui/                     # Style (palette, fonts), BookFrame (cloth, spine, pages), Controls (knob, meter, buttons, icons, LookAndFeel), MetricsOverlay
 │   └── tests/                  # analysis, content and session unit tests
 ├── volumes/
+│   ├── 01-gain-staging/        # Vol. I: Trim + its rules on the shared book (docs/GAIN-STAGING.md)
 │   └── 04-compression/
 │       ├── CMakeLists.txt
 │       ├── PluginProcessor.{h,cpp}

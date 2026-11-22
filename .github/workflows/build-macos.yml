@@ -1,4 +1,4 @@
-# Build, test, validate and package NA Encyclopedia Vol. IV on every push, any branch.
+# Build, test, validate and package every NA Encyclopedia volume on every push, any branch.
 name: Build macOS
 
 on:
@@ -13,17 +13,18 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# One line per volume: folder | CMake target | product name | plugin code | bundle ID | artifact name
 env:
-  ARTEFACTS: build/volumes/04-compression/NAEncyclopediaCompression_artefacts/Release
-  PLUGIN_NAME: NA Encyclopedia IV Compression
-  AU_ID: aufx NE04 Tywl
-  AU_DISPLAY_NAME: "Noveltee Audio: NA Encyclopedia IV Compression"
-  BUNDLE_ID: com.novelteeaudio.naencyclopedia.compression
+  VOLUMES: |
+    01-gain-staging|NAEncyclopediaGainStaging|NA Encyclopedia I Gain Staging|NE01|com.novelteeaudio.naencyclopedia.gainstaging|NAEncyclopedia-I-GainStaging-pkg
+    04-compression|NAEncyclopediaCompression|NA Encyclopedia IV Compression|NE04|com.novelteeaudio.naencyclopedia.compression|NAEncyclopedia-IV-Compression-pkg
+  MANUFACTURER: Tywl
+  COMPANY: Noveltee Audio
 
 jobs:
   build:
     runs-on: macos-15   # macos-14 is retired
-    timeout-minutes: 60
+    timeout-minutes: 75
 
     steps:
       - name: Check out
@@ -59,64 +60,69 @@ jobs:
             -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
             -DFETCHCONTENT_SOURCE_DIR_JUCE="$HOME/juce-src"
 
-      - name: Build AU, VST3 and tests
+      - name: Build every volume and the tests
         run: cmake --build build --parallel
 
       - name: Unit tests
         run: ctest --test-dir build --output-on-failure
 
-      - name: Check the binaries are universal
+      - name: Check universal binaries and ad-hoc sign
         run: |
-          for b in "$ARTEFACTS/AU/$PLUGIN_NAME.component" "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"; do
-            lipo -info "$b/Contents/MacOS/$PLUGIN_NAME"
-            lipo "$b/Contents/MacOS/$PLUGIN_NAME" -verify_arch arm64 x86_64
-          done
+          while IFS='|' read -r dir target product code bundle artifact; do
+            [ -n "$dir" ] || continue
+            art="build/volumes/$dir/${target}_artefacts/Release"
+            for b in "$art/AU/$product.component" "$art/VST3/$product.vst3"; do
+              lipo -info "$b/Contents/MacOS/$product"
+              lipo "$b/Contents/MacOS/$product" -verify_arch arm64 x86_64
+              codesign --force --deep -s - "$b"
+            done
+          done <<< "$VOLUMES"
 
-      - name: Ad-hoc sign
+      - name: Build an installer (.pkg) per volume
         run: |
-          codesign --force --deep -s - "$ARTEFACTS/AU/$PLUGIN_NAME.component"
-          codesign --force --deep -s - "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3"
+          while IFS='|' read -r dir target product code bundle artifact; do
+            [ -n "$dir" ] || continue
+            art="build/volumes/$dir/${target}_artefacts/Release"
+            installer/build-pkg.sh "$art/AU/$product.component" "$art/VST3/$product.vst3" \
+              "$bundle" "$product" "build/pkg/$dir"
+          done <<< "$VOLUMES"
+          ls -R build/pkg
 
-      - name: Build installer (.pkg)
+      - name: Install every .pkg on this runner, exactly like on a real Mac
         run: |
-          installer/build-pkg.sh \
-            "$ARTEFACTS/AU/$PLUGIN_NAME.component" \
-            "$ARTEFACTS/VST3/$PLUGIN_NAME.vst3" \
-            "$BUNDLE_ID" "$PLUGIN_NAME" build/pkg
-          PKG=$(ls build/pkg/*.pkg)
-          echo "PKG=$PKG" >> "$GITHUB_ENV"
+          while IFS='|' read -r dir target product code bundle artifact; do
+            [ -n "$dir" ] || continue
+            sudo installer -pkg "$(ls build/pkg/$dir/*.pkg)" -target / -verboseR
+            test -d "/Library/Audio/Plug-Ins/Components/$product.component" \
+              || { echo "::error::$product: AU not installed to /Library/Audio/Plug-Ins/Components"; exit 1; }
+            test -d "/Library/Audio/Plug-Ins/VST3/$product.vst3" \
+              || { echo "::error::$product: VST3 not installed to /Library/Audio/Plug-Ins/VST3"; exit 1; }
+            codesign --verify --deep --strict "/Library/Audio/Plug-Ins/Components/$product.component"
+          done <<< "$VOLUMES"
 
-      - name: Install the .pkg on this runner, exactly like on a real Mac
-        run: |
-          sudo installer -pkg "$PKG" -target / -verboseR
-          test -d "/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component" \
-            || { echo "::error::Installer did not put the AU in /Library/Audio/Plug-Ins/Components"; exit 1; }
-          test -d "/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3" \
-            || { echo "::error::Installer did not put the VST3 in /Library/Audio/Plug-Ins/VST3"; exit 1; }
-          codesign --verify --deep --strict "/Library/Audio/Plug-Ins/Components/$PLUGIN_NAME.component"
-
-      - name: auval the installed AU
+      - name: auval every installed AU
         run: |
           killall -9 AudioComponentRegistrar 2>/dev/null || true
-          for i in $(seq 1 20); do
-            auval -a 2>/dev/null | grep -q "$AU_ID" && break
-            echo "Waiting for macOS to register the AU ($i)..."
-            sleep 3
-          done
-          set +e
-          auval -strict -v $AU_ID | tee auval.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ] || ! grep -q "AU VALIDATION SUCCEEDED" auval.log; then
-            echo "::error::auval failed"
-            exit 1
-          fi
-          # The name Logic shows: developer and plugin.
-          auval -a | grep "$AU_ID" | tee auname.log
-          grep -q "$AU_DISPLAY_NAME" auname.log \
-            || { echo "::error::AU is not registered as '$AU_DISPLAY_NAME'"; exit 1; }
-          # Mono tracks: Logic hides plugins that can't run mono->mono or mono->stereo.
-          grep -E "1-1|1-2" auval.log || true
+          while IFS='|' read -r dir target product code bundle artifact; do
+            [ -n "$dir" ] || continue
+            id="aufx $code $MANUFACTURER"
+            for i in $(seq 1 20); do
+              auval -a 2>/dev/null | grep -q "$id" && break
+              echo "Waiting for macOS to register $product ($i)..."
+              sleep 3
+            done
+            set +e
+            auval -strict -v $id | tee "auval-$code.log"
+            status=${PIPESTATUS[0]}
+            set -e
+            if [ "$status" -ne 0 ] || ! grep -q "AU VALIDATION SUCCEEDED" "auval-$code.log"; then
+              echo "::error::auval failed for $product"
+              exit 1
+            fi
+            # The name Logic shows: developer and plugin.
+            auval -a | grep "$id" | grep -q "$COMPANY: $product" \
+              || { echo "::error::$product is not registered as '$COMPANY: $product'"; exit 1; }
+          done <<< "$VOLUMES"
 
       - name: Cache pluginval
         id: pluginval-cache
@@ -132,18 +138,26 @@ jobs:
             https://github.com/Tracktion/pluginval/releases/latest/download/pluginval_macOS.zip
           unzip -q pluginval.zip
 
-      - name: pluginval (strictness 10, VST3)
+      - name: pluginval every VST3 (strictness 10)
         run: |
-          ./pluginval.app/Contents/MacOS/pluginval \
-            --strictness-level 10 \
-            --validate-in-process \
-            --verbose \
-            --validate "/Library/Audio/Plug-Ins/VST3/$PLUGIN_NAME.vst3"
+          while IFS='|' read -r dir target product code bundle artifact; do
+            [ -n "$dir" ] || continue
+            ./pluginval.app/Contents/MacOS/pluginval --strictness-level 10 --validate-in-process \
+              --validate "/Library/Audio/Plug-Ins/VST3/$product.vst3"
+          done <<< "$VOLUMES"
 
-      - name: Upload installer
+      - name: Upload Vol. I installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NAEncyclopedia-I-GainStaging-pkg
+          path: build/pkg/01-gain-staging/*.pkg
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Upload Vol. IV installer
         uses: actions/upload-artifact@v4
         with:
           name: NAEncyclopedia-IV-Compression-pkg
-          path: ${{ env.PKG }}
+          path: build/pkg/04-compression/*.pkg
           if-no-files-found: error
           retention-days: 30

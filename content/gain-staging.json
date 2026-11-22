@@ -40,17 +40,19 @@
       "doThis": "DO THIS",
       "listenFor": "LISTEN FOR",
       "tryThis": "TRY THIS",
-      "target": "Target: {min}–{max}{unit}",
+      "target": "Target: {min} to {max}{unit}",
       "previous": "‹ Chapter {numeral}",
       "next": "CHAPTER {numeral} ›",
-      "debugToggle": "Debug"
+      "debugToggle": "Debug",
+      "readoutWaiting": "Play the track to measure it",
+      "readout": "{peak} dBFS peaks · {average} dBFS average"
     },
     "units": { "peakDb": " dBFS", "averageDb": " dBFS", "trimDb": " dB" },
     "reading": {
       "title": "THE READING",
       "live": "Listening live",
       "idle": "Waiting for playback",
-      "meterTarget": "Target zone: {min}–{max}{unit}",
+      "meterTarget": "Target zone: {min} to {max}{unit}",
       "status": {
         "silence": "Waiting for audio",
         "listening": "Listening…",
@@ -65,6 +67,41 @@
         "crest": "Peak to average",
         "maxPeak": "Loudest peak so far"
       }
+    }
+  },
+
+  "debug": {
+    "title": "Analysis (debug)",
+    "none": "–",
+    "states": {
+      "silence": "silence",
+      "listening": "listening",
+      "evaluating": "evaluating"
+    },
+    "units": {
+      "db": " dB",
+      "lufs": " LUFS",
+      "percent": "%",
+      "seconds": " s"
+    },
+    "labels": {
+      "state": "State",
+      "activeSeconds": "Active audio in window",
+      "dynamicRange": "Dynamic range (p95 − p10)",
+      "momentaryIn": "Momentary loudness, in",
+      "grNow": "Gain reduction, now",
+      "grP90": "Gain reduction, 90th percentile",
+      "onsets": "Onsets detected",
+      "frontsKept": "Fronts kept (median of last 8)",
+      "frontsKeptCount": "Onsets in that median",
+      "frontGr": "Last front: reduction applied",
+      "frontTargetGr": "Last front: instant attack would apply",
+      "residualGr": "Residual GR before notes",
+      "ripple": "GR ripple, sustained",
+      "loudnessIn": "Short-term loudness, in",
+      "loudnessOut": "Short-term loudness, out",
+      "levelDiff": "Level difference (out − in)",
+      "dropped": "Dropped analysis blocks"
     }
   },
 

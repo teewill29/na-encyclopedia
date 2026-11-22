@@ -123,4 +123,5 @@ target_link_libraries(NAEncyclopediaContentTests
 add_test(NAME ContentTests COMMAND NAEncyclopediaContentTests)
 
 # ── Volumes ──────────────────────────────────────────────────────────────────
+add_subdirectory(volumes/01-gain-staging)
 add_subdirectory(volumes/04-compression)
