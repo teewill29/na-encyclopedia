@@ -1,4 +1,7 @@
-#include "PluginEditor.h"
+#include "BookEditor.h"
+
+namespace na::book
+{
 
 namespace P = na::ui::Palette;
 
@@ -26,7 +29,7 @@ namespace
     }
 }
 
-BookRoot::BookRoot (CompressionAudioProcessor& p, std::function<void (float)> onScale)
+BookRoot::BookRoot (BookProcessor& p, std::function<void (float)> onScale)
     : processor (p),
       lookAndFeel (na::ui::colourFromHex (p.getContent().getString ("book.cloth"), juce::Colour (0xFF213B2F))),
       titleView (p),
@@ -50,10 +53,10 @@ BookRoot::BookRoot (CompressionAudioProcessor& p, std::function<void (float)> on
         juce::PopupMenu menu;
         menu.setLookAndFeel (&lookAndFeel);
         const auto unit = processor.getContent().getString ("debug.units.percent");
-        for (int i = 0; i < (int) std::size (CompressionAudioProcessorEditor::scales); ++i)
-            menu.addItem (i + 1, juce::String (juce::roundToInt (CompressionAudioProcessorEditor::scales[i] * 100)) + unit);
+        for (int i = 0; i < (int) std::size (BookEditor::scales); ++i)
+            menu.addItem (i + 1, juce::String (juce::roundToInt (BookEditor::scales[i] * 100)) + unit);
         menu.showMenuAsync (juce::PopupMenu::Options().withTargetComponent (sizeButton),
-                            [this] (int chosen) { if (chosen > 0 && onScaleChosen) onScaleChosen (CompressionAudioProcessorEditor::scales[chosen - 1]); });
+                            [this] (int chosen) { if (chosen > 0 && onScaleChosen) onScaleChosen (BookEditor::scales[chosen - 1]); });
     };
     addAndMakeVisible (sizeButton);
 
@@ -84,7 +87,7 @@ void BookRoot::setScaleLabel (float scale)
 void BookRoot::showCurrentPage()
 {
     const bool title = processor.getSession().isOnTitlePage();
-    frame.setLeftPageWidth (title ? 0 : na::vol4::ChapterView::leftPageWidth);
+    frame.setLeftPageWidth (title ? 0 : ChapterView::leftPageWidth);
     if (title) titleView.refresh();
     else       chapterView.refresh();
     titleView.setVisible (title);
@@ -117,7 +120,7 @@ void BookRoot::resized()
 }
 
 // ── Editor ───────────────────────────────────────────────────────────────────
-juce::PropertiesFile::Options CompressionAudioProcessorEditor::settingsOptions()
+juce::PropertiesFile::Options BookEditor::settingsOptions()
 {
     juce::PropertiesFile::Options o;
     o.applicationName = "NA Encyclopedia";
@@ -127,7 +130,7 @@ juce::PropertiesFile::Options CompressionAudioProcessorEditor::settingsOptions()
     return o;
 }
 
-CompressionAudioProcessorEditor::CompressionAudioProcessorEditor (CompressionAudioProcessor& p)
+BookEditor::BookEditor (BookProcessor& p)
     : AudioProcessorEditor (&p),
       root (p, [this] (float s)
       {
@@ -145,7 +148,7 @@ CompressionAudioProcessorEditor::CompressionAudioProcessorEditor (CompressionAud
     setScale (chosen);
 }
 
-void CompressionAudioProcessorEditor::setScale (float s)
+void BookEditor::setScale (float s)
 {
     scale = s;
     root.setScaleLabel (s);
@@ -153,7 +156,9 @@ void CompressionAudioProcessorEditor::setScale (float s)
     setSize (juce::roundToInt (na::ui::BookFrame::baseWidth * s), juce::roundToInt (na::ui::BookFrame::baseHeight * s));
 }
 
-void CompressionAudioProcessorEditor::resized()
+void BookEditor::resized()
 {
     root.setBounds (0, 0, na::ui::BookFrame::baseWidth, na::ui::BookFrame::baseHeight);
 }
+
+} // namespace na::book

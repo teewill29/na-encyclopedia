@@ -63,6 +63,17 @@ juce_add_binary_data(NAEncyclopediaFonts
         ${CMAKE_CURRENT_SOURCE_DIR}/assets/fonts/EBGaramond-Italic.ttf
 )
 target_link_libraries(NAEncyclopediaCore INTERFACE NAEncyclopediaFonts)
+
+# The book itself (processor base, screens, window). Only plugins and their
+# end-to-end tests use it: it needs the plugin's own defines (JucePlugin_Name,
+# version, NA_BUILD_ID, NA_DEBUG_OVERLAY).
+add_library(NAEncyclopediaBook INTERFACE)
+target_sources(NAEncyclopediaBook INTERFACE
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/book/BookProcessor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/book/BookViews.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/book/BookEditor.cpp
+)
+target_link_libraries(NAEncyclopediaBook INTERFACE NAEncyclopediaCore)
 target_include_directories(NAEncyclopediaCore INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaCore INTERFACE cxx_std_20)
 

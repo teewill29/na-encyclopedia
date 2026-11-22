@@ -1,13 +1,13 @@
 #pragma once
 
-#include "PluginProcessor.h"
+#include "BookProcessor.h"
 #include "ui/Controls.h"
 
 // The book's two screens (docs/UI-REFERENCE.md §6). Both are transparent and
 // sit over the pages that na::ui::BookFrame draws; they are given the pages
 // area (everything right of the spine) and lay out their own two pages.
 
-namespace na::vol4
+namespace na::book
 {
 
 /** A goal card: name over tagline, check when chosen (UI-REFERENCE §6.1). */
@@ -27,7 +27,7 @@ private:
 class TitleView final : public juce::Component
 {
 public:
-    explicit TitleView (CompressionAudioProcessor&);
+    explicit TitleView (BookProcessor&);
 
     void refresh();
     void paint (juce::Graphics&) override;
@@ -39,7 +39,7 @@ private:
     juce::Rectangle<int> leftPage() const  { return getLocalBounds().removeFromLeft (getWidth() / 2); }
     juce::Rectangle<int> rightPage() const { return getLocalBounds().withTrimmedLeft (getWidth() / 2); }
 
-    CompressionAudioProcessor& processor;
+    BookProcessor& processor;
     const na::Content& content;
     juce::Colour cloth;
 
@@ -74,7 +74,7 @@ class ChapterView final : public juce::Component,
 public:
     static constexpr int leftPageWidth = 330;
 
-    explicit ChapterView (CompressionAudioProcessor&);
+    explicit ChapterView (BookProcessor&);
     ~ChapterView() override;
 
     void refresh();
@@ -95,7 +95,7 @@ private:
     void paintChapter (juce::Graphics&);
     void paintReading (juce::Graphics&, juce::Rectangle<int> area);
 
-    CompressionAudioProcessor& processor;
+    BookProcessor& processor;
     const na::Content& content;
     juce::Colour cloth;
 
@@ -115,4 +115,4 @@ private:
     int knobSize = 132, readingPad = 16, readingGap = 12;
 };
 
-} // namespace na::vol4
+} // namespace na::book

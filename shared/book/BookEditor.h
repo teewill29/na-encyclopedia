@@ -1,10 +1,13 @@
 #pragma once
 
-#include "PluginProcessor.h"
+#include "BookProcessor.h"
 #include "BookViews.h"
 #include "ui/BookFrame.h"
 #include "ui/Controls.h"
 #include "ui/MetricsOverlay.h"
+
+namespace na::book
+{
 
 /** Small gold text on the cloth's bottom edge (window size, debug toggle). */
 class ClothTextButton final : public juce::Button
@@ -19,7 +22,7 @@ class BookRoot final : public juce::Component,
                        private juce::ChangeListener
 {
 public:
-    BookRoot (CompressionAudioProcessor&, std::function<void (float)> onScaleChosen);
+    BookRoot (BookProcessor&, std::function<void (float)> onScaleChosen);
     ~BookRoot() override;
 
     void setScaleLabel (float scale);
@@ -30,11 +33,11 @@ private:
     void changeListenerCallback (juce::ChangeBroadcaster*) override { showCurrentPage(); }
     void showCurrentPage();
 
-    CompressionAudioProcessor& processor;
+    BookProcessor& processor;
     na::ui::BookLookAndFeel lookAndFeel;
     na::ui::BookFrame frame;
-    na::vol4::TitleView titleView;
-    na::vol4::ChapterView chapterView;
+    TitleView titleView;
+    ChapterView chapterView;
     ClothTextButton sizeButton;
     std::function<void (float)> onScaleChosen;
 
@@ -45,10 +48,10 @@ private:
 };
 
 /** The plugin window. Sizes in fixed steps (UI-REFERENCE §2), remembered per user. */
-class CompressionAudioProcessorEditor final : public juce::AudioProcessorEditor
+class BookEditor final : public juce::AudioProcessorEditor
 {
 public:
-    explicit CompressionAudioProcessorEditor (CompressionAudioProcessor&);
+    explicit BookEditor (BookProcessor&);
 
     static constexpr float scales[] = { 0.8f, 1.0f, 1.25f, 1.5f };
 
@@ -61,5 +64,7 @@ private:
     BookRoot root;
     float scale = 1.0f;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (CompressionAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BookEditor)
 };
+
+} // namespace na::book

@@ -2,6 +2,7 @@
 
 #include <juce_core/juce_core.h>
 #include "analysis/Metrics.h"
+#include "book/Rules.h"
 #include "dsp/Compressor.h"
 
 #include <string>
@@ -27,21 +28,10 @@ namespace Feedback
     /** Group in content "messages" for a chapter (Chapter I uses "needCheck"). */
     juce::String messageGroupFor (const juce::String& chapterId);
 
-    /** How a zone is coloured (UI-REFERENCE §3): never the only signal,
-        the status label always says it in words too. */
-    enum class Tone { neutral, good, tooMuch, tooLittle };   // tooMuch = warnLow, tooLittle = warnHigh
+    using Tone = na::book::Tone;
     Tone toneFor (const juce::String& chapterId, const std::string& zone);
 
-    /** A meter in The Reading (UI-REFERENCE §6.2, §7). */
-    struct Meter
-    {
-        const char* labelKey;          // content "book.reading.meters.<key>"
-        float value, rangeMin, rangeMax;
-        float targetMin, targetMax;    // NaN = no target zone
-        const char* unitKey;           // content "debug.units.<key>"
-        int decimals;
-        bool showsStatus;              // fill coloured by the chapter's status (else neutral)
-    };
+    using Meter = na::book::Meter;
     std::vector<Meter> metersFor (const juce::String& chapterId, const juce::var& goal,
                                   const analysis::Metrics& metrics, const CompressorSettings& settings);
 }

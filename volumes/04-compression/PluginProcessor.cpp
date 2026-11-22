@@ -1,18 +1,15 @@
 #include "PluginProcessor.h"
-#include "PluginEditor.h"
 #include "Parameters.h"
 #include "Chapters.h"
 #include "Feedback.h"
+#include "content/Template.h"
 #include "BinaryData.h"
 
 using namespace na::vol4;
 
 CompressionAudioProcessor::CompressionAudioProcessor()
-    : AudioProcessor (BusesProperties()
-                          .withInput  ("Input",  juce::AudioChannelSet::stereo(), true)
-                          .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
-      content (na::Content::fromJson (BinaryData::compression_json, (size_t) BinaryData::compression_jsonSize)),
-      parameters (*this, nullptr, "PARAMETERS", createParameterLayout (content))
+    : BookProcessor (BinaryData::compression_json, (size_t) BinaryData::compression_jsonSize,
+                     [] (const na::Content& c) { return createParameterLayout (c); })
 {
     threshold = parameters.getRawParameterValue (ParamID::threshold);
     ratio     = parameters.getRawParameterValue (ParamID::ratio);
@@ -20,125 +17,13 @@ CompressionAudioProcessor::CompressionAudioProcessor()
     release   = parameters.getRawParameterValue (ParamID::release);
     makeup    = parameters.getRawParameterValue (ParamID::makeup);
     mix       = parameters.getRawParameterValue (ParamID::mix);
-
-    drainIn.resize (8192);
-    drainOut.resize (8192);
-    drainGr.resize (8192);
-    drainTarget.resize (8192);
-    metrics.prepare (44100.0);
-    startTimerHz (30);
 }
 
-CompressionAudioProcessor::~CompressionAudioProcessor()
-{
-    aliveToken.reset();
-    stopTimer();
-}
-
-void CompressionAudioProcessor::prepareToPlay (double sampleRate, int)
+// ── DSP ──────────────────────────────────────────────────────────────────────
+void CompressionAudioProcessor::prepareDsp (double sampleRate)
 {
     compressor.prepare (sampleRate);
     listening.prepare (sampleRate);
-    pendingSampleRate.store (sampleRate);
-    setLatencySamples (0);
-}
-
-void CompressionAudioProcessor::timerCallback()
-{
-    // A new sample rate: re-prepare (allocates, fine here) and drop stale audio.
-    if (const auto rate = pendingSampleRate.exchange (0.0); rate > 0.0)
-    {
-        metrics.prepare (rate);
-        taps.discardAll();
-        feedbackChapter = {};   // the audio clock restarted: start the chapter's reading over
-    }
-
-    float* dest[] = { drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data() };
-    for (int guard = 0; guard < 64; ++guard)
-    {
-        const auto n = taps.pop (dest, drainIn.size());
-        if (n == 0)
-            break;
-        metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data(), (int) n);
-        lastAudioArrived = juce::Time::getMillisecondCounterHiRes() * 0.001;
-    }
-
-    updateFeedback();
-
-    // Compare plays the dry input turned up/down by the measured out − in loudness.
-    if (const auto diff = metrics.get().levelDiffDb; std::isfinite (diff))
-        compareGainDb.store (diff);
-}
-
-bool CompressionAudioProcessor::isAudioArriving() const noexcept
-{
-    return lastAudioArrived >= 0.0
-        && juce::Time::getMillisecondCounterHiRes() * 0.001 - lastAudioArrived < audioStoppedAfter;
-}
-
-void CompressionAudioProcessor::updateFeedback()
-{
-    if (session.isOnTitlePage())
-    {
-        feedbackChapter = {};
-        return;
-    }
-
-    const auto chapter = session.getCurrentChapterId();
-    if (chapter != feedbackChapter)
-    {
-        feedback.reset();
-        feedbackChapter = chapter;
-        lastKnobValue = std::numeric_limits<float>::quiet_NaN();
-    }
-
-    // Did the chapter's own knob move since the last tick?
-    bool knobMoved = false;
-    if (const auto* rule = na::vol4::ruleFor (chapter); rule != nullptr && rule->paramId != nullptr)
-    {
-        const auto v = parameters.getRawParameterValue (rule->paramId)->load();
-        knobMoved = ! std::isnan (lastKnobValue) && std::abs (v - lastKnobValue) > 1.0e-4f;
-        lastKnobValue = v;
-    }
-
-    using Phase = na::FeedbackTracker::Phase;
-    const auto& m = metrics.get();
-    // No audio arriving (playback stopped) reads as silence straight away.
-    const auto phase = ! isAudioArriving()                                 ? Phase::silence
-                     : m.state == na::analysis::Metrics::State::silence   ? Phase::silence
-                     : m.state == na::analysis::Metrics::State::listening ? Phase::listening
-                                                                          : Phase::evaluating;
-    const auto zone = na::vol4::Feedback::zoneFor (chapter, session.getInstrument(), session.getGoal(), m, readSettings());
-
-    feedback.update (metrics.getSecondsAnalysed(), phase, zone, knobMoved,
-                     na::vol4::Feedback::doneZonesFor (chapter));
-
-    if (feedback.isDone() && ! session.isDone (chapter))
-        session.setDone (chapter, true);
-}
-
-void CompressionAudioProcessor::releaseResources()
-{
-    compressor.reset();
-}
-
-bool CompressionAudioProcessor::isBusesLayoutSupported (const BusesLayout& layouts) const
-{
-    // Mono tracks are the norm for vocals, bass and kick, and Logic hides
-    // plugins that can't run on them. Supported: mono→mono, mono→stereo,
-    // stereo→stereo.
-    const auto in  = layouts.getMainInputChannelSet();
-    const auto out = layouts.getMainOutputChannelSet();
-
-    const auto isMonoOrStereo = [] (const juce::AudioChannelSet& set)
-    {
-        return set == juce::AudioChannelSet::mono() || set == juce::AudioChannelSet::stereo();
-    };
-
-    if (! isMonoOrStereo (in) || ! isMonoOrStereo (out))
-        return false;
-
-    return in.size() <= out.size(); // no stereo→mono
 }
 
 CompressorSettings CompressionAudioProcessor::readSettings() const noexcept
@@ -154,141 +39,105 @@ CompressorSettings CompressionAudioProcessor::readSettings() const noexcept
     return s;
 }
 
-void CompressionAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuffer&)
+void CompressionAudioProcessor::processChunk (float* const* channels, int numChannels, int numSamples,
+                                              const float* const* dryIn, const na::book::Taps& t) noexcept
 {
-    juce::ScopedNoDenormals noDenormals;
-
-    // Use the channel layout as it is now, not as it was in prepareToPlay:
-    // the AU can switch layouts without preparing again (Front of House lesson).
-    const auto numIn  = getTotalNumInputChannels();
-    const auto numOut = getTotalNumOutputChannels();
-    const auto n      = buffer.getNumSamples();
-
-    if (numIn < 1 || numOut < 1 || n == 0 || buffer.getNumChannels() < juce::jmax (numIn, numOut))
-        return;
-
-    // Mono→stereo: copy the mono input to both sides, then compress both (linked).
-    if (numIn == 1 && numOut == 2)
-        buffer.copyFrom (1, 0, buffer, 0, 0, n);
-    else
-        for (auto ch = numIn; ch < numOut; ++ch)
-            buffer.clear (ch, 0, n);
-
     compressor.setSettings (readSettings());
-    listening.setMode ((ListenMode) listenMode.load (std::memory_order_relaxed));
+    listening.setMode (getListenMode());
     listening.setCompareGainDb (compareGainDb.load (std::memory_order_relaxed));
 
-    const auto numCh = juce::jmin (numOut, Compressor::maxChannels);
-    auto* const* channels = buffer.getArrayOfWritePointers();
-    float blockMaxGr = 0.0f;
+    compressor.process (channels, numChannels, numSamples, t.gr, wetGain.data(), t.grTarget, removed.data());
 
-    // In chunks, so the fixed-size tap buffers never need to grow.
-    for (int start = 0; start < n; start += tapChunk)
-    {
-        const auto len = juce::jmin (tapChunk, n - start);
-        float* chunk[Compressor::maxChannels] = {};
-        for (int ch = 0; ch < numCh; ++ch)
-            chunk[ch] = channels[ch] + start;
+    // Compare / Hear what's removed (after the taps' sources are captured)
+    listening.process (channels, dryIn, removed.data(), numChannels, numSamples);
 
-        // `in` tap: mono sum before compression; keep the dry input for the listening tools
-        for (int i = 0; i < len; ++i)
-            tapIn[(size_t) i] = numCh == 2 ? 0.5f * (chunk[0][i] + chunk[1][i]) : chunk[0][i];
-        for (int ch = 0; ch < numCh; ++ch)
-            std::copy (chunk[ch], chunk[ch] + len, dry[(size_t) ch].begin());
-
-        compressor.process (chunk, numCh, len, tapGr.data(), tapWetGain.data(), tapTarget.data(), removed.data());
-
-        // Compare / Hear what's removed (after the taps' sources are captured)
-        const float* dryChannels[2] = { dry[0].data(), dry[1].data() };
-        listening.process (chunk, dryChannels, removed.data(), numCh, len);
-        blockMaxGr = juce::jmax (blockMaxGr, compressor.getBlockMaxGainReductionDb());
-
-        // `out` tap: after makeup, before Mix (the gain is linked, so in × wet gain)
-        for (int i = 0; i < len; ++i)
-            tapOut[(size_t) i] = tapIn[(size_t) i] * tapWetGain[(size_t) i];
-
-        const float* streams[] = { tapIn.data(), tapOut.data(), tapGr.data(), tapTarget.data() };
-        taps.push (streams, (size_t) len); // drops (never blocks) if analysis falls behind
-    }
-
-    if (blockMaxGr > grPeakForUi.load (std::memory_order_relaxed))
-        grPeakForUi.store (blockMaxGr, std::memory_order_relaxed);
+    // `out` tap: after makeup, before Mix (the gain is linked, so in × wet gain)
+    for (int i = 0; i < numSamples; ++i)
+        t.out[i] = t.in[i] * wetGain[(size_t) i];
 }
 
-juce::AudioProcessorEditor* CompressionAudioProcessor::createEditor()
+// ── Book hooks ───────────────────────────────────────────────────────────────
+void CompressionAudioProcessor::chapterOpened (const juce::String& chapterId, bool firstVisit)
 {
-    return new CompressionAudioProcessorEditor (*this);
+    if (firstVisit)
+        applyStartValues (chapterId, session.getGoal(), parameters);
 }
 
-void CompressionAudioProcessor::beginBook (const juce::String& instrumentId, const juce::String& goalId)
-{
-    session.setup (instrumentId, goalId);
-    if (! session.getChapterIds().isEmpty())
-        openChapter (session.getChapterIds()[0]);
-    updateMixForce();
-}
-
-void CompressionAudioProcessor::openChapter (const juce::String& chapterId)
-{
-    if (session.goTo (chapterId))
-        na::vol4::applyStartValues (chapterId, session.getGoal(), parameters);
-    updateMixForce();
-}
-
-void CompressionAudioProcessor::nextChapter()
-{
-    const auto i = session.getCurrentIndex();
-    if (i >= 0 && i + 1 < session.getChapterIds().size())
-        openChapter (session.getChapterIds()[i + 1]);
-}
-
-void CompressionAudioProcessor::previousChapter()
-{
-    const auto i = session.getCurrentIndex();
-    if (i > 0)
-        openChapter (session.getChapterIds()[i - 1]);
-}
-
-void CompressionAudioProcessor::updateMixForce()
+void CompressionAudioProcessor::sessionChanged()
 {
     mixForcedToFull.store (na::vol4::isMixForcedToFull (session));
 }
 
-void CompressionAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
+void CompressionAudioProcessor::analysisTick()
 {
-    // Parameters plus the book session (instrument, goal, chapter, progress).
-    auto state = parameters.copyState();
-    state.removeChild (state.getChildWithName (na::Session::treeType), nullptr);
-    state.appendChild (session.toValueTree(), nullptr);
-
-    if (auto xml = state.createXml())
-        copyXmlToBinary (*xml, destData);
+    // Compare plays the dry input turned up/down by the measured out − in loudness.
+    if (const auto diff = metrics.get().levelDiffDb; std::isfinite (diff))
+        compareGainDb.store (diff);
 }
 
-void CompressionAudioProcessor::setStateInformation (const void* data, int sizeInBytes)
+// ── Rules ────────────────────────────────────────────────────────────────────
+const char* CompressionAudioProcessor::knobParamFor (const juce::String& chapterId) const
 {
-    auto xml = getXmlFromBinary (data, sizeInBytes);
-    if (xml == nullptr || ! xml->hasTagName (parameters.state.getType()))
-        return;
-
-    auto state = juce::ValueTree::fromXml (*xml);
-    // The session is message-thread only; hosts usually restore there, but not always.
-    if (juce::MessageManager::getInstance()->isThisTheMessageThread())
-        restoreState (state);
-    else
-        juce::MessageManager::callAsync ([this, state, alive = std::weak_ptr<int> (aliveToken)]
-                                         { if (alive.lock()) restoreState (state); });
+    const auto* rule = ruleFor (chapterId);
+    return rule != nullptr ? rule->paramId : nullptr;
 }
 
-void CompressionAudioProcessor::restoreState (const juce::ValueTree& stateIn)
+juce::String CompressionAudioProcessor::targetCaptionFor (const juce::String& chapterId) const
 {
-    auto state = stateIn.createCopy();
-    const auto sessionTree = state.getChildWithName (na::Session::treeType);
-    state.removeChild (sessionTree, nullptr);
-    parameters.replaceState (state);
-    if (sessionTree.isValid())
-        session.fromValueTree (sessionTree);
-    updateMixForce();
+    const auto* rule = ruleFor (chapterId);
+    const auto goal = session.getGoal();
+    if (rule == nullptr || rule->targetKey == nullptr || ! goal[rule->targetKey].isObject())
+        return {};
+
+    const auto range = goal[rule->targetKey];
+    const juce::String key (rule->targetKey);
+    const auto values = na::Template::forValues ({ { "min", na::Template::formatNumber ((double) range["min"]) },
+                                                   { "max", na::Template::formatNumber ((double) range["max"]) },
+                                                   { "unit", content.getString ("book.units." + key) } });
+    return na::Template::fill (content.getString (key == "grDb" ? "book.chapterPage.targetGr" : "book.chapterPage.target"), values);
+}
+
+juce::String CompressionAudioProcessor::readoutFor (const juce::String& chapterId) const
+{
+    // Chapter I: dynamic range of the input (FEEDBACK-ENGINE.md §2.2)
+    const auto dr = metrics.get().dynamicRangeDb;
+    if (chapterId != "goal" || std::isnan (dr))
+        return {};
+    return na::Template::fill (content.getString ("book.chapterPage.dynamicRange"),
+                               na::Template::forValues ({ { "value", juce::String (dr, 1) } }));
+}
+
+std::string CompressionAudioProcessor::zoneFor (const juce::String& chapterId) const
+{
+    return Feedback::zoneFor (chapterId, session.getInstrument(), session.getGoal(), metrics.get(), readSettings());
+}
+
+std::string CompressionAudioProcessor::doneZonesFor (const juce::String& chapterId) const
+{
+    return Feedback::doneZonesFor (chapterId);
+}
+
+juce::String CompressionAudioProcessor::messageGroupFor (const juce::String& chapterId) const
+{
+    return Feedback::messageGroupFor (chapterId);
+}
+
+na::book::Tone CompressionAudioProcessor::toneFor (const juce::String& chapterId, const std::string& zone) const
+{
+    return Feedback::toneFor (chapterId, zone);
+}
+
+std::vector<na::book::Meter> CompressionAudioProcessor::metersFor (const juce::String& chapterId) const
+{
+    return Feedback::metersFor (chapterId, session.getGoal(), metrics.get(), readSettings());
+}
+
+juce::StringArray CompressionAudioProcessor::setSoFarParamsFor (const juce::String& chapterId) const
+{
+    auto params = BookProcessor::setSoFarParamsFor (chapterId);
+    if (chapterId == "ratioThreshold")
+        params.add (ParamID::ratio);   // set by the goal in Chapter II
+    return params;
 }
 
 // Called by the plugin wrappers to create a new instance.

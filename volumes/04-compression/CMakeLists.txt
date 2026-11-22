@@ -2,7 +2,7 @@
 
 # Bump on every build you hand to Logic for testing: Logic caches each plugin's
 # name and validation result per version, so a new version forces a fresh look.
-set(NA_COMPRESSION_VERSION 1.0.7)
+set(NA_COMPRESSION_VERSION 1.0.8)
 
 if(APPLE)
     set(NA_COMPRESSION_FORMATS AU VST3)
@@ -30,11 +30,9 @@ juce_add_plugin(NAEncyclopediaCompression
 
 target_sources(NAEncyclopediaCompression PRIVATE
     PluginProcessor.cpp
-    PluginEditor.cpp
     Parameters.cpp
     Chapters.cpp
     Feedback.cpp
-    BookViews.cpp
     dsp/Compressor.cpp
 )
 
@@ -56,7 +54,7 @@ target_compile_definitions(NAEncyclopediaCompression PUBLIC
 
 target_link_libraries(NAEncyclopediaCompression
     PRIVATE
-        NAEncyclopediaCore
+        NAEncyclopediaBook
         NAEncyclopediaCompressionData
         juce::juce_audio_utils
     PUBLIC
@@ -81,11 +79,9 @@ juce_add_console_app(NAEncyclopediaCompressionProcessorTests PRODUCT_NAME "NAEnc
 target_sources(NAEncyclopediaCompressionProcessorTests PRIVATE
     tests/ProcessorTests.cpp
     PluginProcessor.cpp
-    PluginEditor.cpp
     Parameters.cpp
     Chapters.cpp
     Feedback.cpp
-    BookViews.cpp
     dsp/Compressor.cpp
 )
 target_include_directories(NAEncyclopediaCompressionProcessorTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -100,7 +96,7 @@ target_compile_definitions(NAEncyclopediaCompressionProcessorTests PRIVATE
 )
 target_link_libraries(NAEncyclopediaCompressionProcessorTests
     PRIVATE
-        NAEncyclopediaCore
+        NAEncyclopediaBook
         NAEncyclopediaCompressionData
         juce::juce_audio_utils
     PUBLIC

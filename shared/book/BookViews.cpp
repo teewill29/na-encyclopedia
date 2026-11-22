@@ -1,11 +1,9 @@
 #include "BookViews.h"
-#include "Chapters.h"
-#include "Feedback.h"
 #include "content/Template.h"
 
 #include <cmath>
 
-namespace na::vol4
+namespace na::book
 {
 
 using namespace na::ui;
@@ -68,7 +66,7 @@ void GoalCard::paintButton (juce::Graphics& g, bool highlighted, bool)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-TitleView::TitleView (CompressionAudioProcessor& p)
+TitleView::TitleView (BookProcessor& p)
     : processor (p), content (p.getContent()),
       cloth (colourFromHex (p.getContent().getString ("book.cloth"), juce::Colour (0xFF213B2F)))
 {
@@ -272,7 +270,7 @@ void ChapterRow::paintButton (juce::Graphics& g, bool highlighted, bool)
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-ChapterView::ChapterView (CompressionAudioProcessor& p)
+ChapterView::ChapterView (BookProcessor& p)
     : processor (p), content (p.getContent()),
       cloth (colourFromHex (p.getContent().getString ("book.cloth"), juce::Colour (0xFF213B2F)))
 {
@@ -297,7 +295,7 @@ ChapterView::ChapterView (CompressionAudioProcessor& p)
     {
         const bool on = removedButton.getToggleState();
         if (on) compareButton.setToggleState (false, juce::dontSendNotification);
-        processor.setListenMode (on ? CompressionAudioProcessor::ListenMode::removed : CompressionAudioProcessor::ListenMode::normal);
+        processor.setListenMode (on ? BookProcessor::ListenMode::removed : BookProcessor::ListenMode::normal);
     };
     addAndMakeVisible (removedButton);
 
@@ -306,7 +304,7 @@ ChapterView::ChapterView (CompressionAudioProcessor& p)
     compareButton.onToggle = [this] (bool on)
     {
         if (on) removedButton.setToggleState (false, juce::dontSendNotification);
-        processor.setListenMode (on ? CompressionAudioProcessor::ListenMode::compare : CompressionAudioProcessor::ListenMode::normal);
+        processor.setListenMode (on ? BookProcessor::ListenMode::compare : BookProcessor::ListenMode::normal);
     };
     addAndMakeVisible (compareButton);
 
@@ -325,8 +323,8 @@ void ChapterView::timerCallback()
 {
     // Keep the buttons in step if the mode was changed elsewhere (e.g. a reload).
     const auto mode = processor.getListenMode();
-    removedButton.setToggleState (mode == CompressionAudioProcessor::ListenMode::removed, juce::dontSendNotification);
-    compareButton.setToggleState (mode == CompressionAudioProcessor::ListenMode::compare, juce::dontSendNotification);
+    removedButton.setToggleState (mode == BookProcessor::ListenMode::removed, juce::dontSendNotification);
+    compareButton.setToggleState (mode == BookProcessor::ListenMode::compare, juce::dontSendNotification);
 
     repaint (rightPage().withTop (reading.getY()));
     repaint (setSoFarArea);
@@ -378,30 +376,21 @@ void ChapterView::refresh()
 
     // The chapter's knob; rebuilt only when the chapter changes, so a new
     // check mark doesn't interrupt a drag.
-    const auto* rule = ruleFor (current);
+    const auto* paramId = processor.knobParamFor (current);
     if (current != attachedChapter)
     {
         attachedChapter = current;
         knobAttachment.reset();
-        knob.setVisible (rule != nullptr && rule->paramId != nullptr);
-        if (knob.isVisible())
-            knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.getValueTree(), rule->paramId, knob);
+        knob.setVisible (paramId != nullptr);
+        if (paramId != nullptr)
+            knobAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment> (processor.getValueTree(), paramId, knob);
     }
-    knobName = {};
-    targetCaption = {};
-    if (knob.isVisible())
-    {
-        knobName = content.getString (juce::String ("parameters.") + rule->paramId + ".name").toUpperCase();
-        if (rule->targetKey != nullptr && goal[rule->targetKey].isObject())
-        {
-            const auto range = goal[rule->targetKey];
-            const auto min = na::Template::formatNumber ((double) range["min"]);
-            const auto max = na::Template::formatNumber ((double) range["max"]);
-            const juce::String key (rule->targetKey);
-            targetCaption = key == "grDb" ? fill (text ("targetGr"), { { "min", min }, { "max", max } })
-                                          : fill (text ("target"), { { "min", min }, { "max", max }, { "unit", content.getString ("book.units." + key) } });
-        }
-    }
+    knobName = paramId != nullptr ? content.getString (juce::String ("parameters.") + paramId + ".name").toUpperCase() : juce::String();
+    targetCaption = processor.targetCaptionFor (current);
+
+    // Listening tools only in volumes that have them
+    removedButton.setVisible (processor.hasListeningTools());
+    compareButton.setVisible (processor.hasListeningTools());
 
     const auto index = session.getCurrentIndex();
     previousButton.setVisible (index > 0);
@@ -425,13 +414,13 @@ void ChapterView::layoutRightPage()
 
     // Every message this chapter can show, so The Reading's height never jumps.
     juce::StringArray messages { content.getString ("messages.silence"), content.getString ("messages.listening") };
-    if (auto* group = content.get ("messages." + Feedback::messageGroupFor (chapter["id"].toString())).getDynamicObject())
+    if (auto* group = content.get ("messages." + processor.messageGroupFor (chapter["id"].toString())).getDynamicObject())
         for (const auto& prop : group->getProperties())
             messages.add (prop.value.toString());
     const int captionH = Text::measure (targetCaption, F::garamond (14.0f, 400, true), knobW, 1.3f);
     const int knobExtras = 16 + 8 + 4 + 16 + 4 + 32 + 4 + captionH;    // name, range, value, target
     knobSize = 132;
-    const bool hasMeters = ! Feedback::metersFor (chapter["id"].toString(), goal, processor.getMetrics(), processor.getSettings()).empty();
+    const bool hasMeters = ! processor.metersFor (chapter["id"].toString()).empty();
 
     readingPad = 16; readingGap = 12;
     for (int attempt = 0; attempt < 24; ++attempt)
@@ -551,11 +540,8 @@ void ChapterView::paintContents (juce::Graphics& g)
     juce::StringArray params;
     const auto& ids = session.getChapterIds();
     for (int i = 0; i < session.getCurrentIndex() && i < ids.size(); ++i)
-        if (const auto* r = ruleFor (ids[i]); r != nullptr && r->paramId != nullptr)
-        {
-            params.add (r->paramId);
-            if (ids[i] == "ratioThreshold") params.add ("ratio");   // set by the goal in Chapter II
-        }
+        for (const auto& p : processor.setSoFarParamsFor (ids[i]))
+            params.addIfNotAlreadyThere (p);
     const int colW = (sf.getWidth() - 22) / 2;
     for (int i = 0; i < params.size() && i < 6; ++i)
         if (auto* param = processor.getValueTree().getParameter (params[i]))
@@ -595,7 +581,7 @@ void ChapterView::paintChapter (juce::Graphics& g)
     if (knob.isVisible())
     {
         eyebrow (g, knobName, knobBlock.withHeight (16), 12.0f, 0.22f, P::labelInk, juce::Justification::centred);
-        auto* param = processor.getValueTree().getParameter (ruleFor (session.getCurrentChapterId())->paramId);
+        auto* param = processor.getValueTree().getParameter (processor.knobParamFor (session.getCurrentChapterId()));
         int y = knob.getBottom() - 18 + 4;
         if (param != nullptr)
         {
@@ -611,16 +597,15 @@ void ChapterView::paintChapter (juce::Graphics& g)
         Text::draw (g, targetCaption, knobBlock.withY (y).withHeight (60), F::garamond (14.0f, 400, true), P::inkSoft,
                     juce::Justification::centredTop, 1.3f);
     }
-    else if (chapter["id"].toString() == "goal")
+    else
     {
-        // Chapter I: a large dynamic range readout instead of a knob (UI-REFERENCE §6.3)
-        const auto dr = processor.getMetrics().dynamicRangeDb;
+        // No knob (e.g. Chapter I): the volume's readout instead (UI-REFERENCE §6.3)
+        const auto readout = processor.readoutFor (chapter["id"].toString());
         auto block = knobBlock.withTrimmedTop (24);
-        if (std::isnan (dr))
-            Text::draw (g, text ("dynamicRangeWaiting"), block, F::garamond (17.0f, 400, true), P::inkMuted, juce::Justification::centredTop, 1.35f);
+        if (readout.isEmpty())
+            Text::draw (g, text ("readoutWaiting"), block, F::garamond (17.0f, 400, true), P::inkMuted, juce::Justification::centredTop, 1.35f);
         else
-            Text::draw (g, fill (text ("dynamicRange"), { { "value", juce::String (dr, 1) } }), block,
-                        F::cinzel (26.0f, 600), P::ink, juce::Justification::centredTop, 1.25f);
+            Text::draw (g, readout, block, F::cinzel (26.0f, 600), P::ink, juce::Justification::centredTop, 1.25f);
     }
 
     // Instructions
@@ -640,12 +625,11 @@ void ChapterView::paintChapter (juce::Graphics& g)
 void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
 {
     using Phase = na::FeedbackTracker::Phase;
-    using Tone = Feedback::Tone;
 
     const auto& fb = processor.getFeedback();
     const auto chapterId = chapter["id"].toString();
-    const auto group = Feedback::messageGroupFor (chapterId);
-    const auto meters = Feedback::metersFor (chapterId, goal, processor.getMetrics(), processor.getSettings());
+    const auto group = processor.messageGroupFor (chapterId);
+    const auto meters = processor.metersFor (chapterId);
 
     juce::String statusKey, messageKey;
     Tone tone = Tone::neutral;
@@ -654,7 +638,7 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     else
     {
         statusKey = messageKey = group + "." + juce::String (fb.zone);
-        tone = Feedback::toneFor (chapterId, fb.zone);
+        tone = processor.toneFor (chapterId, fb.zone);
     }
     const auto toneColour = tone == Tone::good ? P::good : tone == Tone::tooMuch ? P::warnLow : tone == Tone::tooLittle ? P::warnHigh : P::inkMuted;
     const float alpha = fb.dimmed ? 0.45f : 1.0f;
@@ -711,4 +695,4 @@ void ChapterView::paintReading (juce::Graphics& g, juce::Rectangle<int> area)
     }
 }
 
-} // namespace na::vol4
+} // namespace na::book

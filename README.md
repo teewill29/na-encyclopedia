@@ -104,6 +104,7 @@ na-encyclopedia/
 │   ├── analysis/               # FIFOs, onset detector, loudness, metrics
 │   ├── chapters/               # chapter state machine, feedback evaluation
 │   ├── dsp/                    # listening tools (Compare, Hear what's removed)
+│   ├── book/                   # BookProcessor (taps, metrics, session, feedback, state), screens, window
 │   ├── ui/                     # Style (palette, fonts), BookFrame (cloth, spine, pages), Controls (knob, meter, buttons, icons, LookAndFeel), MetricsOverlay
 │   └── tests/                  # analysis, content and session unit tests
 ├── volumes/

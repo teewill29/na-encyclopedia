@@ -45,7 +45,7 @@
       "previous": "‹ Chapter {numeral}",
       "next": "CHAPTER {numeral} ›",
       "dynamicRange": "{value} dB of movement",
-      "dynamicRangeWaiting": "Play the track to measure it",
+      "readoutWaiting": "Play the track to measure it",
       "debugToggle": "Debug",
       "hearRemoved": "Hear what's removed",
       "compare": "Compare at equal level"
