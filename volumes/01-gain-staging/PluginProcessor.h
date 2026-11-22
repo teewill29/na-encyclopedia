@@ -31,7 +31,8 @@ private:
     std::atomic<float>* trim = nullptr;
     float currentGain = 1.0f;     // audio thread: ramped toward the knob
     float rampCoeff = 0.999f;
-    float trimAtHoldReset = 0.0f;   // Chapter IV: moving the trim > 1 dB restarts the peak hold
+    float trimAtHoldReset = 0.0f;   // Chapter IV: moving the trim > 1 dB restarts the peak hold…
+    double holdResetDue = -1.0;     // …once the gain glide has settled (audio seconds)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (GainStagingProcessor)
 };

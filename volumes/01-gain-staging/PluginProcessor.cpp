@@ -40,7 +40,7 @@ GainStagingProcessor::GainStagingProcessor()
 // ── DSP: a smoothed gain ─────────────────────────────────────────────────────
 void GainStagingProcessor::prepareDsp (double sampleRate)
 {
-    rampCoeff = (float) std::exp (-1.0 / (0.02 * sampleRate));   // ~20 ms glide, never clicks
+    rampCoeff = (float) std::exp (-1.0 / (0.02 * sampleRate));   // 20 ms time constant (settled in ~100 ms), never clicks
     currentGain = std::pow (10.0f, trim->load() * 0.05f);
 }
 
@@ -81,12 +81,23 @@ void GainStagingProcessor::readingReset()
 {
     metrics.resetPeakHold();
     trimAtHoldReset = trim->load();
+    holdResetDue = -1.0;
 }
 
 void GainStagingProcessor::analysisTick()
 {
-    // Chapter IV: a real trim move (> 1 dB) starts the "loudest peak so far" over.
-    if (session.getCurrentChapterId() == "headroom" && std::abs (trim->load() - trimAtHoldReset) > 1.0f)
+    // Chapter IV: a real trim move (> 1 dB) starts the "loudest peak so far" over,
+    // but only once the gain has finished gliding (~100 ms), so the old, louder
+    // level on its way down isn't counted. Still turning? The wait restarts.
+    if (session.getCurrentChapterId() != "headroom")
+        return;
+    const auto now = metrics.getSecondsAnalysed();
+    if (std::abs (trim->load() - trimAtHoldReset) > 1.0f)
+    {
+        trimAtHoldReset = trim->load();
+        holdResetDue = now + 0.15;
+    }
+    if (holdResetDue >= 0.0 && now >= holdResetDue)
         readingReset();
 }
 
