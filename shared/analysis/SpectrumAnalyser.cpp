@@ -202,41 +202,81 @@ float SpectrumAnalyser::energyDb (Stream s, float loHz, float hiHz) const noexce
     return toDb (total);
 }
 
+std::vector<float> SpectrumAnalyser::typicalFromPoints (const std::vector<std::pair<float, float>>& points)
+{
+    std::vector<float> db ((size_t) numBands, 0.0f);
+    if (points.empty()) return db;
+    for (int b = 0; b < numBands; ++b)
+    {
+        const float x = std::log2 (bandCentreHz (b));
+        if (x <= std::log2 (points.front().first)) { db[(size_t) b] = points.front().second; continue; }
+        if (x >= std::log2 (points.back().first))  { db[(size_t) b] = points.back().second;  continue; }
+        for (size_t i = 1; i < points.size(); ++i)
+        {
+            const float x0 = std::log2 (points[i - 1].first), x1 = std::log2 (points[i].first);
+            if (x <= x1)
+            {
+                const float t = x1 > x0 ? (x - x0) / (x1 - x0) : 0.0f;
+                db[(size_t) b] = points[i - 1].second + t * (points[i].second - points[i - 1].second);
+                break;
+            }
+        }
+    }
+    return db;
+}
+
+float SpectrumAnalyser::buildUpDb (Stream s, float loHz, float hiHz, const Reference& ref) const noexcept
+{
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    if (! hasReading() || ! (hiHz > loHz)) return nan;
+    const auto& db = levelsDb (s);
+    const bool typical = ref.typicalDb.size() == (size_t) numBands;
+    const float fitLo = ref.fitLoHz > 0.0f ? ref.fitLoHz : loHz * 0.5f;
+    const float fitHi = ref.fitHiHz > 0.0f ? ref.fitHiHz : hiHz * 2.0f;
+
+    // The track's difference from "normal", per band
+    auto diff = [&] (int b) { return db[(size_t) b] - (typical ? ref.typicalDb[(size_t) b] : 0.0f); };
+    auto inRange = [&] (float f) { return f >= loHz && f <= hiHz; };
+
+    // Least-squares line (in log frequency) through the difference around the range.
+    // Bands at the digital floor (nothing there at all) are left out.
+    double n = 0, sx = 0, sy = 0, sxx = 0, sxy = 0;
+    bool below = false, above = false;
+    for (int b = 0; b < numBands; ++b)
+    {
+        const float f = bandCentreHz (b);
+        if (f < fitLo || f > fitHi || inRange (f) || db[(size_t) b] <= floorDb + 1.0f) continue;
+        const double x = std::log2 (f), y = diff (b);
+        n += 1; sx += x; sy += y; sxx += x * x; sxy += x * y;
+        below = below || f < loHz;
+        above = above || f > hiHz;
+    }
+    if (n < 1) return nan;
+    double slope = 0.0, intercept = sy / n;
+    if (below && above && n >= 2)
+    {
+        const double denom = n * sxx - sx * sx;
+        if (std::abs (denom) > 1e-9)
+        {
+            slope = (n * sxy - sx * sy) / denom;
+            intercept = (sy - slope * sx) / n;
+        }
+    }
+
+    double sum = 0.0; int count = 0;
+    for (int b = 0; b < numBands; ++b)
+        if (const auto f = bandCentreHz (b); inRange (f))
+        {
+            sum += diff (b) - (intercept + slope * std::log2 (f));
+            ++count;
+        }
+    return count > 0 ? (float) (sum / count) : nan;
+}
+
 float SpectrumAnalyser::buildUpDb (Stream s, float loHz, float hiHz) const noexcept
 {
-    if (! hasReading() || ! (hiHz > loHz)) return std::numeric_limits<float>::quiet_NaN();
-    const auto& db = levelsDb (s);
-
-    // Mean level (dB per band) over [a, b]; NaN if no band falls in it
-    auto meanLevel = [&] (float a, float b)
-    {
-        double sum = 0.0; int n = 0;
-        for (int i = 0; i < numBands; ++i)
-            if (const auto f = bandCentreHz (i); f >= a && f <= b) { sum += db[(size_t) i]; ++n; }
-        return n > 0 ? (float) (sum / n) : std::numeric_limits<float>::quiet_NaN();
-    };
-
-    // The straight line (in log frequency) between the octave below and the octave above
-    const float belowLevel = meanLevel (loHz * 0.5f, loHz * 0.999f);
-    const float aboveLevel = meanLevel (hiHz * 1.001f, hiHz * 2.0f);
-    const float belowAt = std::log2 (loHz / std::sqrt (2.0f)), aboveAt = std::log2 (hiHz * std::sqrt (2.0f));
-    auto line = [&] (float hz)
-    {
-        if (std::isnan (belowLevel)) return aboveLevel;
-        if (std::isnan (aboveLevel)) return belowLevel;
-        const float t = (std::log2 (hz) - belowAt) / (aboveAt - belowAt);
-        return belowLevel + t * (aboveLevel - belowLevel);
-    };
-
-    double sum = 0.0; int n = 0;
-    for (int i = 0; i < numBands; ++i)
-        if (const auto f = bandCentreHz (i); f >= loHz && f <= hiHz)
-        {
-            sum += db[(size_t) i] - line (f);
-            ++n;
-        }
-    return n > 0 && ! (std::isnan (belowLevel) && std::isnan (aboveLevel)) ? (float) (sum / n)
-                                                                            : std::numeric_limits<float>::quiet_NaN();
+    static const Reference flat {};
+    return buildUpDb (s, loHz, hiHz, flat);
 }
 
 float SpectrumAnalyser::rumbleDb (Stream s, float belowHz) const noexcept

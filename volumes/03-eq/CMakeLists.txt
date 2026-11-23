@@ -1,7 +1,7 @@
 # NA Encyclopedia Vol. III: EQ (docs/EQ.md)
 
 # Bump on every build handed to Logic for testing (Logic caches per version).
-set(NA_EQ_VERSION 1.0.1)
+set(NA_EQ_VERSION 1.0.2)
 
 if(APPLE)
     set(NA_EQ_FORMATS AU VST3)
@@ -71,7 +71,7 @@ add_test(NAME EQTests COMMAND NAEncyclopediaEQTests)
 # ── Tuning report (not shipped): the spectrum analysis over a real recording ──
 juce_add_console_app(NAEncyclopediaSpectrumReport PRODUCT_NAME "NAEncyclopediaSpectrumReport")
 target_sources(NAEncyclopediaSpectrumReport PRIVATE tools/SpectrumReport.cpp ${CMAKE_SOURCE_DIR}/shared/analysis/SpectrumAnalyser.cpp)
-target_include_directories(NAEncyclopediaSpectrumReport PRIVATE ${CMAKE_SOURCE_DIR}/shared)
+target_include_directories(NAEncyclopediaSpectrumReport PRIVATE ${CMAKE_SOURCE_DIR}/shared ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(NAEncyclopediaSpectrumReport PRIVATE JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0)
 target_link_libraries(NAEncyclopediaSpectrumReport
     PRIVATE NAEncyclopediaEQData juce::juce_audio_formats

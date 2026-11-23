@@ -246,6 +246,11 @@ juce::StringArray EqProcessor::setSoFarParamsFor (const juce::String& chapterId)
 }
 
 // ── Measurements ─────────────────────────────────────────────────────────────
+void EqProcessor::sessionChanged()
+{
+    references = EqReferences::forInstrument (session.getInstrument());
+}
+
 EqProcessor::Reading EqProcessor::reading() const
 {
     using Stream = na::analysis::SpectrumAnalyser::Stream;
@@ -255,10 +260,10 @@ EqProcessor::Reading EqProcessor::reading() const
     const float nan = std::numeric_limits<float>::quiet_NaN();
     if (! instrument.isObject()) return { nan, nan, nan, nan, nan, nan };
 
-    return { spectrum.buildUpDb (Stream::in,  num (mud["min"]),   num (mud["max"])),
-             spectrum.buildUpDb (Stream::out, num (mud["min"]),   num (mud["max"])),
-             spectrum.buildUpDb (Stream::in,  num (harsh["min"]), num (harsh["max"])),
-             spectrum.buildUpDb (Stream::out, num (harsh["min"]), num (harsh["max"])),
+    return { spectrum.buildUpDb (Stream::in,  num (mud["min"]),   num (mud["max"]),   references.mud),
+             spectrum.buildUpDb (Stream::out, num (mud["min"]),   num (mud["max"]),   references.mud),
+             spectrum.buildUpDb (Stream::in,  num (harsh["min"]), num (harsh["max"]), references.harsh),
+             spectrum.buildUpDb (Stream::out, num (harsh["min"]), num (harsh["max"]), references.harsh),
              spectrum.rumbleDb (Stream::in,  lowCutMin),
              spectrum.rumbleDb (Stream::out, lowCutMin) };
 }

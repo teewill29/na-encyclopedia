@@ -2,6 +2,7 @@
 
 #include "book/BookProcessor.h"
 #include "dsp/Equalizer.h"
+#include "EqReferences.h"
 
 /** Vol. III, EQ (docs/EQ.md): a 5-band parametric EQ on the shared book.
 
@@ -16,8 +17,8 @@ public:
     /** The measurements for the chosen instrument (docs/EQ.md §4), NaN until there's a reading. */
     struct Reading
     {
-        float mudIn, mudOut;          // build-up in the instrument's mud range, dB
-        float harshIn, harshOut;      // build-up in its harsh range, dB
+        float mudIn, mudOut;          // build-up in the instrument's mud range vs its typical spectrum, dB
+        float harshIn, harshOut;      // build-up in its harsh range vs its typical spectrum, dB
         float rumbleIn, rumbleOut;    // energy below its low-cut range vs the whole track, dB
     };
     Reading reading() const;
@@ -44,6 +45,7 @@ protected:
     void processChunk (float* const* channels, int numChannels, int numSamples,
                        const float* const* dry, const na::book::Taps&) noexcept override;
     void chapterOpened (const juce::String& chapterId, bool firstVisit) override;
+    void sessionChanged() override;
 
 private:
     na::vol3::EqSettings readSettings() const noexcept;
@@ -56,6 +58,7 @@ private:
     std::atomic<float>* output = nullptr;
 
     na::vol3::Equalizer equalizer;
+    na::vol3::EqReferences references;     // for the chosen instrument (message thread)
     double currentSampleRate = 48000.0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (EqProcessor)

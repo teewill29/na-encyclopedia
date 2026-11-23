@@ -202,7 +202,8 @@ int main()
         p.setPlayConfigDetails (2, 2, sr, block);
         p.prepareToPlay (sr, block);
         juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
-        p.beginBook ("leadVocal", "clear");          // mud 200-500 Hz, harsh 2.5-5 kHz
+        // Mix Bus: its typical spectrum is a smooth tilt, so pink noise reads ~0 and the bump stands out.
+        p.beginBook ("mixBus", "polish");            // mud 200-400 Hz, harsh 2.5-5 kHz, rumble below 20 Hz
         MuddyNoise noise;
         check (std::isnan (p.reading().mudIn), "no reading before audio");
 
@@ -227,13 +228,26 @@ int main()
         check (std::abs (r.mudOut) < 1.0f, "`out` cleared by the cut: " + std::to_string (r.mudOut));
         check (std::isfinite (r.rumbleIn) && r.rumbleIn < 0.0f, "rumble is measured: " + std::to_string (r.rumbleIn));
 
-        p.openChapter ("lowEnd");                    // low cut on at the instrument's start value (30 Hz)
+        p.openChapter ("lowEnd");                    // low cut on
         setParam (p, "band1Freq", 100.0f);
         playMuddy (p, noise, 4.0);
         r = p.reading();
-        check (r.rumbleOut < r.rumbleIn - 10.0f, "a 100 Hz low cut takes the rumble below 80 Hz down: "
+        check (r.rumbleOut < r.rumbleIn - 10.0f, "a 100 Hz low cut takes the rumble below 20 Hz down: "
                                                    + std::to_string (r.rumbleIn) + " -> " + std::to_string (r.rumbleOut));
         check (p.debugRows().size() == 7, "debug rows");
+    });
+
+    test ("each instrument is measured against its own typical spectrum", [] {
+        EqProcessor p;
+        p.beginBook ("leadVocal", "clear");
+        // The vocal's typical spectrum has a body around 250-500 Hz, so the
+        // reference for "normal" is not flat.
+        auto refs = na::vol3::EqReferences::forInstrument (p.getSession().getInstrument());
+        check (refs.mud.typicalDb.size() == (size_t) na::analysis::SpectrumAnalyser::numBands, "typical spectrum read from the content file");
+        check (std::abs (refs.mud.fitLoHz - 120.0f) < 0.01f && std::abs (refs.mud.fitHiHz - 2000.0f) < 0.01f, "mud fit span 120 Hz to 2 kHz");
+        check (std::abs (refs.harsh.fitLoHz - 1250.0f) < 0.01f && std::abs (refs.harsh.fitHiHz - 16000.0f) < 0.01f, "harsh fit span 1.25 to 16 kHz");
+        const auto band = [] (float hz) { int b = 0; while (na::analysis::SpectrumAnalyser::bandCentreHz (b + 1) <= hz * 1.03f) ++b; return (size_t) b; };
+        check (refs.mud.typicalDb[band (400)] > refs.mud.typicalDb[band (125)] + 3.0f, "vocal body above its low end");
     });
 
     test ("settings and the book are saved with the project", [] {

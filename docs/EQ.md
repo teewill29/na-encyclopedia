@@ -50,7 +50,7 @@ Chapters III and IV have a **"Hear the band"** button: a temporary narrow boost 
 
 - **Spectrum** of `in` and `out`: FFT on the analysis side (4096 points, 50 % overlap), smoothed to 1/6 octave, averaged over the last ~3 s of active audio. No work on the audio thread beyond the existing taps.
 - **Band energy** in dB for any frequency range, from that spectrum.
-- **Build-up** in a range (mud, harshness): the range's energy above a straight line drawn between its two neighbouring octaves, in dB. A flat-ish track reads ~0 dB; a muddy one reads, say, +4 dB.
+- **Build-up** in a range (mud, harshness): how far the range stands out **compared with a typical track of that instrument**, in dB. A normal lead vocal reads ~0 dB; a muddy one reads, say, +4 dB. *(Changed after the first Logic test: the draft measured against a straight line between the neighbouring octaves, and a raw vocal read +11.7 dB, because every voice naturally has far more energy at 200–500 Hz than at 100–200 Hz. Even an average speech spectrum read about +3 dB, so every vocal would have been called muddy.)*
 - **Rumble**: energy below the instrument's low-cut range, relative to the whole track.
 - **Level match**: the existing short-term loudness in vs out (Vol. IV §2.7).
 
@@ -58,7 +58,8 @@ Chapters III and IV have a **"Hear the band"** button: a temporary narrow boost 
 - Bands every 1/6 octave from 10 Hz to 20.5 kHz (the display uses 20 Hz–20 kHz; the bands below 20 Hz count towards rumble). Each band takes its share of every FFT bin it overlaps, so the narrow low bands still read sensibly.
 - Level = the signal's mean-square power in the band, in dB: a full-scale sine reads −3 dB in its band, pink noise reads flat.
 - Frames whose `in` level is under −50 dBFS are skipped, so the reading holds when playback stops. A reading needs 1 s of active audio; the average is the last 3 s.
-- Build-up = mean over the range's bands of (level − the straight line between the mean level of the octave below and of the octave above). Pink and white noise read 0 ± 0.75 dB; a +6 dB, Q 1.4 bell at 300 Hz reads about +3 to +5 dB in a 200–500 Hz range.
+- Build-up = the track minus the instrument's **typical spectrum** (`typicalSpectrum` in the content file: (Hz, dB) points, interpolated in log frequency), then the mean of that difference over the range minus a straight line (least squares, log frequency) fitted to the difference around the range. The fit span is half the range's low edge (never below the instrument's `lowCutHz.max`) to four times its high edge (never above 16 kHz). The line removes overall tilt, so a darker or brighter recording of a normal track still reads ~0; only a bump in the range counts.
+- Tests: a track shaped like the reference reads 0 ± 0.75 dB even though its body stands +3 dB or more above a flat line; the same track with a +6 dB, Q 1.4 bell at 300 Hz reads +2.5 to +6 dB; a broad −9 dB darkening reads 0 ± 1 dB. Against a flat reference, pink and white noise read 0 ± 0.75 dB.
 - Rumble = power below the instrument's `lowCutHz.min` ÷ the whole track's power, in dB.
 - The book runs it only for volumes that ask (`enableSpectrum()`), on the analysis timer, never the audio thread. The debug overlay shows the readings for the chosen instrument.
 
@@ -92,7 +93,8 @@ Same state machine, timing and ticks as the other volumes.
 
 `NAEncyclopediaSpectrumReport <file.wav> [instrumentId]` (built with the tests, not shipped) runs the analysis over a recording and prints the spectrum plus, for every instrument in the content file, the median and 90th-percentile build-up in its mud and harsh ranges and its rumble, next to `mudNeedDb` / `harshNeedDb`.
 
-- **Test vocal (Ride 'Em Cowboy `raw vox.wav`): not yet run.** That file lives in another repository this session couldn't open. Step 3's thresholds should be checked against it (or any raw vocal, and a drum stem) before the feedback is final.
+- **Test vocal (Ride 'Em Cowboy `raw vox.wav`), read in Logic by the owner on 1.0.1:** mud build-up +11.7 dB on the old straight-line measure (owner: "it does sound a bit muddy"), harsh build-up −1 to +1 dB. The old measure counted the voice's natural body as mud, so the measure was changed (§4). The new reading of the same vocal is still to come; it should land clearly above `mudNeedDb` (3) since the track does sound muddy, and harshness should stay near 0.
+- **Typical spectra** (`typicalSpectrum`, one per instrument) are drafts. The voices follow published long-term average speech spectra (Byrne et al. 1994), with a little more 2–4 kHz for lead vocal; the others are common reference shapes. Engineer to review, ideally by running this report over a few well-mixed stems of each instrument and averaging.
 - Seen on a sustained single-note instrument (JUCE's cello sample, looped): build-up swings by several dB depending on whether a strong harmonic lands inside the range (+5 to +8 dB in 200–500 Hz, −2.5 dB in 400–800 Hz). Real parts with many notes average this out over 3 s, but a held note can read as "muddy". Something to watch when tuning `mudNeedDb`.
 
 ## 9. Questions for the owner / engineer review

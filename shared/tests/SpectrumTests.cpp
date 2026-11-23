@@ -222,6 +222,57 @@ int main()
         checkNear (a.buildUpDb (Stream::out, 200, 500), 0.0, 0.75, "out is flat again");
     });
 
+    test ("typical spectra: interpolated in log frequency, held flat past the ends", []
+    {
+        const auto t = SpectrumAnalyser::typicalFromPoints ({ { 100.0f, -10.0f }, { 400.0f, 0.0f }, { 1600.0f, -20.0f } });
+        checkNear (t[(size_t) bandFor (100)], -10.0, 0.15, "at a point" /* band centres are ~1.6 % off round numbers */);
+        checkNear (t[(size_t) bandFor (200)], -5.0, 0.15, "an octave between two points" /* band centres are ~1.6 % off round numbers */);
+        checkNear (t[(size_t) bandFor (800)], -10.0, 0.15, "falling side" /* band centres are ~1.6 % off round numbers */);
+        checkNear (t[(size_t) bandFor (20)], -10.0, 0.01, "below the first point");
+        checkNear (t[(size_t) bandFor (10000)], -20.0, 0.01, "above the last point");
+    });
+
+    // A "voice-shaped" source: little below 150 Hz, a natural body around 350 Hz.
+    auto voiceLike = [] (unsigned seed)
+    {
+        auto x = pink (1.0, 4.0, seed);
+        highPass (x, 150.0);
+        highPass (x, 150.0);
+        peak (x, 350.0, 8.0, 0.7);
+        return x;
+    };
+
+    test ("build-up against a typical spectrum: a normal track reads ~0, even though its body stands out", [&]
+    {
+        SpectrumAnalyser reference; reference.prepare (sr);
+        feed (reference, voiceLike (11));
+        SpectrumAnalyser::Reference ref { reference.levelsDb (Stream::in), 100.0f, 2000.0f };
+
+        SpectrumAnalyser a; a.prepare (sr);
+        feed (a, voiceLike (12));
+        check (a.buildUpDb (Stream::in, 200, 500) > 3.0f, "against flat, the natural body reads high: " + std::to_string (a.buildUpDb (Stream::in, 200, 500)));
+        checkNear (a.buildUpDb (Stream::in, 200, 500, ref), 0.0, 0.75, "against the typical spectrum");
+    });
+
+    test ("build-up against a typical spectrum: extra mud shows, overall tilt doesn't", [&]
+    {
+        SpectrumAnalyser reference; reference.prepare (sr);
+        feed (reference, voiceLike (11));
+        SpectrumAnalyser::Reference ref { reference.levelsDb (Stream::in), 100.0f, 2000.0f };
+
+        SpectrumAnalyser muddy; muddy.prepare (sr);
+        auto x = voiceLike (13);
+        peak (x, 300.0, 6.0, 1.4);
+        feed (muddy, x);
+        checkRange (muddy.buildUpDb (Stream::in, 200, 500, ref), 2.5, 6.0, "a +6 dB bump at 300 Hz");
+
+        SpectrumAnalyser dark; dark.prepare (sr);
+        auto y = voiceLike (14);
+        peak (y, 4000.0, -9.0, 0.3);              // a broad, darker tilt across the whole span
+        feed (dark, y);
+        checkNear (dark.buildUpDb (Stream::in, 200, 500, ref), 0.0, 1.0, "a darker recording isn't 'muddy'");
+    });
+
     test ("rumble: low on high-passed noise, high with a 30 Hz hum, and a low cut removes it", []
     {
         SpectrumAnalyser clean; clean.prepare (sr);

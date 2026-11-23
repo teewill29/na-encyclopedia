@@ -4,6 +4,7 @@
 #include <complex>
 #include <cstdint>
 #include <limits>
+#include <utility>
 #include <vector>
 
 namespace na::analysis
@@ -38,6 +39,21 @@ public:
 
     enum class Stream { in, out };
 
+    /** What "normal" looks like for a build-up measurement (docs/EQ.md §4).
+        typicalDb: the instrument's typical level per band (numBands values, any
+        offset), or empty for flat (pink). The track's difference from it is
+        measured against a straight line fitted over [fitLoHz, fitHiHz] outside
+        the range; 0 = an octave either side of the range. */
+    struct Reference
+    {
+        std::vector<float> typicalDb;
+        float fitLoHz = 0.0f, fitHiHz = 0.0f;
+    };
+
+    /** A typical spectrum from (Hz, dB) points, interpolated in log frequency
+        to every band (held flat beyond the first and last point). */
+    static std::vector<float> typicalFromPoints (const std::vector<std::pair<float, float>>& points);
+
     void prepare (double sampleRate);
     void reset() noexcept;
 
@@ -56,9 +72,13 @@ public:
 
     /** Total power of the bands whose centre lies in [loHz, hiHz], in dB. NaN without a reading. */
     float energyDb (Stream, float loHz, float hiHz) const noexcept;
-    /** How far [loHz, hiHz] stands above a straight line drawn between the octave
-        below it and the octave above it, in dB (mean over its bands). A smooth
-        spectrum reads ~0; a muddy or harsh bump reads positive. NaN without a reading. */
+    /** How far [loHz, hiHz] stands out compared with the reference, in dB (mean
+        over its bands): the track minus the typical spectrum, against a straight
+        line fitted to that difference around the range. A track shaped like the
+        reference reads ~0 (whatever its overall tilt); a muddy or harsh bump reads
+        positive. NaN without a reading. No allocation. */
+    float buildUpDb (Stream, float loHz, float hiHz, const Reference&) const noexcept;
+    /** The same against a flat (pink) reference, an octave either side. */
     float buildUpDb (Stream, float loHz, float hiHz) const noexcept;
     /** Energy below belowHz relative to the whole track, in dB (≤ 0). NaN without a reading. */
     float rumbleDb (Stream, float belowHz) const noexcept;

@@ -6,6 +6,7 @@
 // Usage: NAEncyclopediaSpectrumReport <file.wav> [instrumentId]
 
 #include "analysis/SpectrumAnalyser.h"
+#include "EqReferences.h"
 #include "BinaryData.h"
 
 #include <juce_audio_formats/juce_audio_formats.h>
@@ -65,6 +66,9 @@ int main (int argc, char* argv[])
     analyser.prepare (reader->sampleRate);
     struct Series { std::vector<float> mud, harsh, rumble; };
     std::vector<Series> series ((size_t) instruments->size());
+    std::vector<na::vol3::EqReferences> refs;
+    for (const auto& inst : *instruments)
+        refs.push_back (na::vol3::EqReferences::forInstrument (inst));
     const int second = (int) reader->sampleRate;
     for (int start = 0; start < length; start += second)
     {
@@ -74,8 +78,8 @@ int main (int argc, char* argv[])
         for (size_t k = 0; k < (size_t) instruments->size(); ++k)
         {
             const auto& inst = (*instruments)[(int) k];
-            series[k].mud.push_back    (analyser.buildUpDb (Stream::in, num (inst["mudHz"]["min"]), num (inst["mudHz"]["max"])));
-            series[k].harsh.push_back  (analyser.buildUpDb (Stream::in, num (inst["harshHz"]["min"]), num (inst["harshHz"]["max"])));
+            series[k].mud.push_back    (analyser.buildUpDb (Stream::in, num (inst["mudHz"]["min"]), num (inst["mudHz"]["max"]), refs[k].mud));
+            series[k].harsh.push_back  (analyser.buildUpDb (Stream::in, num (inst["harshHz"]["min"]), num (inst["harshHz"]["max"]), refs[k].harsh));
             series[k].rumble.push_back (analyser.rumbleDb (Stream::in, num (inst["lowCutHz"]["min"])));
         }
     }
