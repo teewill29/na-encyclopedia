@@ -1,6 +1,7 @@
 #include "SpectrumAnalyser.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 
 namespace na::analysis
@@ -277,6 +278,27 @@ float SpectrumAnalyser::buildUpDb (Stream s, float loHz, float hiHz) const noexc
 {
     static const Reference flat {};
     return buildUpDb (s, loHz, hiHz, flat);
+}
+
+float SpectrumAnalyser::changeDb (float loHz, float hiHz, float spanLoHz, float spanHiHz) const noexcept
+{
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    if (! hasReading()) return nan;
+
+    std::array<float, numBands> spanChanges {};
+    int spanCount = 0, rangeCount = 0;
+    double rangeSum = 0.0;
+    for (int b = 0; b < numBands; ++b)
+    {
+        if (inDb[(size_t) b] <= floorDb + 1.0f) continue;   // nothing there before: no change to speak of
+        const float f = bandCentreHz (b), change = outDb[(size_t) b] - inDb[(size_t) b];
+        if (f >= spanLoHz && f <= spanHiHz) spanChanges[(size_t) spanCount++] = change;
+        if (f >= loHz && f <= hiHz) { rangeSum += change; ++rangeCount; }
+    }
+    if (spanCount == 0 || rangeCount == 0) return nan;
+    const auto mid = spanChanges.begin() + spanCount / 2;
+    std::nth_element (spanChanges.begin(), mid, spanChanges.begin() + spanCount);
+    return (float) (rangeSum / rangeCount) - *mid;
 }
 
 float SpectrumAnalyser::rumbleDb (Stream s, float belowHz) const noexcept

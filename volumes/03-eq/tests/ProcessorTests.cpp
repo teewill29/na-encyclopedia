@@ -225,7 +225,14 @@ int main()
         playMuddy (p, noise, 4.0);
         r = p.reading();
         check (r.mudIn > 2.5f, "`in` still muddy: " + std::to_string (r.mudIn));
-        check (std::abs (r.mudOut) < 1.0f, "`out` cleared by the cut: " + std::to_string (r.mudOut));
+        check (r.mudOut < r.mudIn - 3.0f && r.mudOut < 1.5f, "`out` cleared by the cut: " + std::to_string (r.mudIn) + " -> " + std::to_string (r.mudOut));
+        check (std::abs (r.harshOut - r.harshIn) < 0.5f, "the mud cut leaves the harsh reading alone");
+
+        setParam (p, "output", -6.0f);              // a level change is not an EQ change
+        playMuddy (p, noise, 4.0);
+        const auto r2 = p.reading();
+        check (std::abs (r2.mudOut - r.mudOut) < 0.5f, "Output doesn't move the build-up: " + std::to_string (r2.mudOut));
+        setParam (p, "output", 0.0f);
         check (std::isfinite (r.rumbleIn) && r.rumbleIn < 0.0f, "rumble is measured: " + std::to_string (r.rumbleIn));
 
         p.openChapter ("lowEnd");                    // low cut on

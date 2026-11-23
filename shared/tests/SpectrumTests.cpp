@@ -273,6 +273,24 @@ int main()
         checkNear (dark.buildUpDb (Stream::in, 200, 500, ref), 0.0, 1.0, "a darker recording isn't 'muddy'");
     });
 
+    test ("change: a cut reads about its depth, a level change and a low cut read ~0", []
+    {
+        auto run = [] (const std::function<void (std::vector<float>&)>& process)
+        {
+            SpectrumAnalyser a; a.prepare (sr);
+            const auto in = pink (1.0, 4.0, 21);
+            auto out = in;
+            process (out);
+            feed (a, in, out);
+            return a.changeDb (200, 500, 120, 16000);
+        };
+        checkRange (run ([] (std::vector<float>& v) { peak (v, 300.0, -6.0, 1.4); }), -6.0, -3.5, "narrow -6 dB cut at 300 Hz");
+        checkRange (run ([] (std::vector<float>& v) { peak (v, 300.0, -6.0, 0.3); }), -6.0, -3.0, "very wide -6 dB cut: still credited");
+        checkNear (run ([] (std::vector<float>& v) { for (auto& x : v) x *= 0.5f; }), 0.0, 0.1, "6 dB quieter overall");
+        checkNear (run ([] (std::vector<float>& v) { highPass (v, 100.0); }), 0.0, 0.5, "a 100 Hz low cut");
+        check (run ([] (std::vector<float>& v) { peak (v, 300.0, 4.0, 1.4); }) > 2.0f, "a boost reads positive");
+    });
+
     test ("rumble: low on high-passed noise, high with a 30 Hz hum, and a low cut removes it", []
     {
         SpectrumAnalyser clean; clean.prepare (sr);

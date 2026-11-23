@@ -1,7 +1,7 @@
 # NA Encyclopedia Vol. III: EQ (docs/EQ.md)
 
 # Bump on every build handed to Logic for testing (Logic caches per version).
-set(NA_EQ_VERSION 1.0.2)
+set(NA_EQ_VERSION 1.0.3)
 
 if(APPLE)
     set(NA_EQ_FORMATS AU VST3)

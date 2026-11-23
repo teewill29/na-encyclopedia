@@ -80,6 +80,14 @@ public:
     float buildUpDb (Stream, float loHz, float hiHz, const Reference&) const noexcept;
     /** The same against a flat (pink) reference, an octave either side. */
     float buildUpDb (Stream, float loHz, float hiHz) const noexcept;
+    /** How much the processing lowered (−) or raised (+) [loHz, hiHz] compared with
+        the rest of the track: the mean out − in change over the range, minus the
+        median change over [spanLo, spanHi]. A broad level change (an output knob)
+        reads 0; a cut in the range reads about its depth there. Use it to judge
+        `out` from the `in` reading: buildUp(in) + changeDb = the build-up after
+        the processing, on the same footing as before it. NaN without a reading. */
+    float changeDb (float loHz, float hiHz, float spanLoHz, float spanHiHz) const noexcept;
+
     /** Energy below belowHz relative to the whole track, in dB (≤ 0). NaN without a reading. */
     float rumbleDb (Stream, float belowHz) const noexcept;
 

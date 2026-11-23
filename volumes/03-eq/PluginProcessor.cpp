@@ -260,10 +260,17 @@ EqProcessor::Reading EqProcessor::reading() const
     const float nan = std::numeric_limits<float>::quiet_NaN();
     if (! instrument.isObject()) return { nan, nan, nan, nan, nan, nan };
 
-    return { spectrum.buildUpDb (Stream::in,  num (mud["min"]),   num (mud["max"]),   references.mud),
-             spectrum.buildUpDb (Stream::out, num (mud["min"]),   num (mud["max"]),   references.mud),
-             spectrum.buildUpDb (Stream::in,  num (harsh["min"]), num (harsh["max"]), references.harsh),
-             spectrum.buildUpDb (Stream::out, num (harsh["min"]), num (harsh["max"]), references.harsh),
+    // `out` = the `in` reading plus what the EQ did to the range compared with the
+    // rest of the track (lowCutHz.max to 16 kHz). Judging `out` against its own
+    // surroundings would let a wide cut or a low cut hide the change (owner's
+    // Logic test of 1.0.2: "out" read higher than "in" after a 6 dB cut).
+    const float spanLo = num (instrument["lowCutHz"]["max"]), spanHi = 16000.0f;
+    const float mudIn = spectrum.buildUpDb (Stream::in, num (mud["min"]), num (mud["max"]), references.mud);
+    const float harshIn = spectrum.buildUpDb (Stream::in, num (harsh["min"]), num (harsh["max"]), references.harsh);
+    return { mudIn,
+             mudIn + spectrum.changeDb (num (mud["min"]), num (mud["max"]), spanLo, spanHi),
+             harshIn,
+             harshIn + spectrum.changeDb (num (harsh["min"]), num (harsh["max"]), spanLo, spanHi),
              spectrum.rumbleDb (Stream::in,  lowCutMin),
              spectrum.rumbleDb (Stream::out, lowCutMin) };
 }
