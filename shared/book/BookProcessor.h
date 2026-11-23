@@ -4,6 +4,7 @@
 #include "content/Content.h"
 #include "analysis/Metrics.h"
 #include "analysis/TapFifo.h"
+#include "analysis/SpectrumAnalyser.h"
 #include "chapters/Session.h"
 #include "chapters/FeedbackTracker.h"
 #include "dsp/ListeningTools.h"
@@ -79,6 +80,10 @@ public:
     bool isListening() const noexcept { return isAudioArriving() && metrics.get().inputActive; }
     bool isAudioArriving() const noexcept;
     const analysis::Metrics& getMetrics() const noexcept { return metrics.get(); }
+    /** The averaged spectrum of `in` and `out` (only runs for volumes that call enableSpectrum()). */
+    const analysis::SpectrumAnalyser& getSpectrum() const noexcept { return spectrum; }
+    /** Extra rows for the debug overlay (label, value), formatted by the volume. */
+    virtual std::vector<std::pair<juce::String, juce::String>> debugRows() const { return {}; }
     unsigned getDroppedAnalysisBlocks() const noexcept { return taps.getDroppedBlocks(); }
 
     // ── Volume rules (message thread) ───────────────────────────────────────
@@ -135,6 +140,9 @@ protected:
     juce::AudioProcessorValueTreeState parameters;
     Session session { content };
     analysis::MetricsEngine metrics;           // message thread only
+    analysis::SpectrumAnalyser spectrum;       // message thread only
+    /** Call from the volume's constructor to run the spectrum analysis (docs/EQ.md §4). */
+    void enableSpectrum() noexcept { spectrumOn = true; }
     std::atomic<int> listenMode { 0 };
 
 private:
@@ -155,6 +163,7 @@ private:
     std::vector<float> drainIn, drainOut, drainGr, drainTarget;
     std::atomic<double> pendingSampleRate { 0.0 };
     double lastAudioArrived = -1.0;
+    bool spectrumOn = false;
     static constexpr double audioStoppedAfter = 0.3;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (BookProcessor)

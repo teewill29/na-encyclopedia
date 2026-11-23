@@ -144,7 +144,14 @@
       "averageIn": "Average, in (RMS)",
       "averageOut": "Average, out (RMS)",
       "maxPeak": "Loudest peak since reset",
-      "dropped": "Dropped analysis blocks"
+      "dropped": "Dropped analysis blocks",
+      "spectrumSeconds": "Spectrum: active audio averaged",
+      "mudIn": "Mud build-up, in ({min} to {max})",
+      "mudOut": "Mud build-up, out",
+      "harshIn": "Harsh build-up, in ({min} to {max})",
+      "harshOut": "Harsh build-up, out",
+      "rumbleIn": "Rumble below {min}, in",
+      "rumbleOut": "Rumble below {min}, out"
     }
   },
   "parameters": {

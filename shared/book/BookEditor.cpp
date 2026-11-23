@@ -38,7 +38,8 @@ BookRoot::BookRoot (BookProcessor& p, std::function<void (float)> onScale)
      #if NA_DEBUG_OVERLAY
       , overlay (p.getContent(),
                  [&p]() -> const na::analysis::Metrics& { return p.getMetrics(); },
-                 [&p] { return p.getDroppedAnalysisBlocks(); })
+                 [&p] { return p.getDroppedAnalysisBlocks(); },
+                 [&p] { return p.debugRows(); })
      #endif
 {
     setLookAndFeel (&lookAndFeel);

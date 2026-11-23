@@ -54,6 +54,48 @@ double gainAt (EqProcessor& p, double hz)
     }
     return 10.0 * std::log10 (sumOut / sumIn);
 }
+
+/** Pink noise with a +6 dB bump at 300 Hz (a "muddy" track), deterministic. */
+struct MuddyNoise
+{
+    juce::Random rng { 7 };
+    double b[7] {}, z1 = 0, z2 = 0;
+    double c0 = 0, c1 = 0, c2 = 0, d1 = 0, d2 = 0;
+    MuddyNoise()
+    {
+        const double A = std::pow (10.0, 6.0 / 40.0), w0 = 2.0 * pi * 300.0 / sr, alpha = std::sin (w0) / (2.0 * 1.4);
+        const double a0 = 1 + alpha / A;
+        c0 = (1 + alpha * A) / a0; c1 = -2 * std::cos (w0) / a0; c2 = (1 - alpha * A) / a0;
+        d1 = -2 * std::cos (w0) / a0; d2 = (1 - alpha / A) / a0;
+    }
+    float next()
+    {
+        const double in = rng.nextFloat() * 2.0 - 1.0;
+        b[0] = 0.99886 * b[0] + in * 0.0555179;  b[1] = 0.99332 * b[1] + in * 0.0750759;
+        b[2] = 0.96900 * b[2] + in * 0.1538520;  b[3] = 0.86650 * b[3] + in * 0.3104856;
+        b[4] = 0.55000 * b[4] + in * 0.5329522;  b[5] = -0.7616 * b[5] - in * 0.0168980;
+        const double pinkValue = (b[0] + b[1] + b[2] + b[3] + b[4] + b[5] + b[6] + in * 0.5362) * 0.05;
+        b[6] = in * 0.115926;
+        const double y = c0 * pinkValue + z1;
+        z1 = c1 * pinkValue - d1 * y + z2;
+        z2 = c2 * pinkValue - d2 * y;
+        return (float) y;
+    }
+};
+
+/** Plays `seconds` of the muddy track with the message loop running, like a host. */
+void playMuddy (EqProcessor& p, MuddyNoise& noise, double seconds)
+{
+    juce::AudioBuffer<float> buf (2, block);
+    juce::MidiBuffer midi;
+    for (int b = 0; b < (int) (seconds * sr / block); ++b)
+    {
+        for (int i = 0; i < block; ++i) { const float x = noise.next(); buf.setSample (0, i, x); buf.setSample (1, i, x); }
+        p.processBlock (buf, midi);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (1);
+    }
+    juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+}
 } // namespace
 
 int main()
@@ -155,6 +197,45 @@ int main()
         check (! p.spectrumFor ("level", d), "no spectrum in Level & Compare");
     });
 
+    test ("the analysis: a muddy track reads as mud on `in`, and cutting it with band 2 clears `out`", [] {
+        EqProcessor p;
+        p.setPlayConfigDetails (2, 2, sr, block);
+        p.prepareToPlay (sr, block);
+        juce::MessageManager::getInstance()->runDispatchLoopUntil (60);
+        p.beginBook ("leadVocal", "clear");          // mud 200-500 Hz, harsh 2.5-5 kHz
+        MuddyNoise noise;
+        check (std::isnan (p.reading().mudIn), "no reading before audio");
+
+        playMuddy (p, noise, 4.0);
+        auto r = p.reading();
+        check (r.mudIn > 2.5f, "mud build-up on `in`: " + std::to_string (r.mudIn));
+        check (std::abs (r.mudOut - r.mudIn) < 0.3f, "flat EQ: out reads the same: " + std::to_string (r.mudOut));
+        check (std::abs (r.harshIn) < 1.0f, "no harshness: " + std::to_string (r.harshIn));
+
+        na::book::SpectrumData d;
+        p.openChapter ("listen");
+        check (p.spectrumFor ("listen", d) && d.inDb.size() == d.freqs.size() && d.outDb.size() == d.freqs.size(),
+               "The Reading gets the measured in/out spectrum");
+
+        p.openChapter ("mud");
+        setParam (p, "band2Freq", 300.0f);
+        setParam (p, "band2Q", 1.4f);
+        setParam (p, "band2Gain", -6.0f);
+        playMuddy (p, noise, 4.0);
+        r = p.reading();
+        check (r.mudIn > 2.5f, "`in` still muddy: " + std::to_string (r.mudIn));
+        check (std::abs (r.mudOut) < 1.0f, "`out` cleared by the cut: " + std::to_string (r.mudOut));
+        check (std::isfinite (r.rumbleIn) && r.rumbleIn < 0.0f, "rumble is measured: " + std::to_string (r.rumbleIn));
+
+        p.openChapter ("lowEnd");                    // low cut on at the instrument's start value (30 Hz)
+        setParam (p, "band1Freq", 100.0f);
+        playMuddy (p, noise, 4.0);
+        r = p.reading();
+        check (r.rumbleOut < r.rumbleIn - 10.0f, "a 100 Hz low cut takes the rumble below 80 Hz down: "
+                                                   + std::to_string (r.rumbleIn) + " -> " + std::to_string (r.rumbleOut));
+        check (p.debugRows().size() == 7, "debug rows");
+    });
+
     test ("settings and the book are saved with the project", [] {
         juce::MemoryBlock state;
         {
@@ -188,12 +269,15 @@ int main()
         std::unique_ptr<juce::AudioProcessorEditor> editor (p.createEditor());
         snap (*editor, "v3-title-page.png");
         p.beginBook ("leadVocal", "clear");
+        MuddyNoise noise;
+        playMuddy (p, noise, 3.0);
         snap (*editor, "v3-chapter-1.png");
         p.openChapter ("lowEnd");
         setParam (p, "band1Freq", 100.0f);
         snap (*editor, "v3-chapter-2.png");
         p.openChapter ("mud");
         setParam (p, "band2Gain", -5.0f);
+        playMuddy (p, noise, 3.5);
         snap (*editor, "v3-chapter-3.png");
         p.openChapter ("shape");
         setParam (p, "band3Gain", 3.0f);

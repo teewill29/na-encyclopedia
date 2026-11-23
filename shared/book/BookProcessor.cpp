@@ -16,6 +16,7 @@ BookProcessor::BookProcessor (const char* contentJson, size_t contentSize, const
     drainGr.resize (8192);
     drainTarget.resize (8192);
     metrics.prepare (44100.0);
+    spectrum.prepare (44100.0);
     startTimerHz (30);
 }
 
@@ -106,6 +107,7 @@ void BookProcessor::timerCallback()
     if (const auto rate = pendingSampleRate.exchange (0.0); rate > 0.0)
     {
         metrics.prepare (rate);
+        spectrum.prepare (rate);
         taps.discardAll();
         feedbackChapter = {};   // the audio clock restarted: start the chapter's reading over
     }
@@ -116,6 +118,8 @@ void BookProcessor::timerCallback()
         const auto n = taps.pop (dest, drainIn.size());
         if (n == 0) break;
         metrics.process (drainIn.data(), drainOut.data(), drainGr.data(), drainTarget.data(), (int) n);
+        if (spectrumOn)
+            spectrum.process (drainIn.data(), drainOut.data(), (int) n);
         lastAudioArrived = juce::Time::getMillisecondCounterHiRes() * 0.001;
     }
 

@@ -45,7 +45,7 @@ Lead Vocal · Backing Vocals · Acoustic Guitar · Electric Guitar (Clean) · El
 |---|---|---|
 | I | Gain Staging | **Built** (spec: [`docs/GAIN-STAGING.md`](docs/GAIN-STAGING.md)), ship prep on hold |
 | II | Balance & Panning | Planned |
-| III | EQ | **In development** (spec: [`docs/EQ.md`](docs/EQ.md)): step 1 of 4, 5-band EQ + book skeleton |
+| III | EQ | **In development** (spec: [`docs/EQ.md`](docs/EQ.md)): step 2 of 4, EQ + spectrum analysis |
 | **IV** | **Compression** | **Built (Milestones 1–7), ship prep on hold** |
 | V | De-essing | Planned |
 | VI | Gating | Planned |

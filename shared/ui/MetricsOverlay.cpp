@@ -13,8 +13,8 @@ namespace
     const juce::Colour muted { 0xFF5E4E3B };
 }
 
-MetricsOverlay::MetricsOverlay (const Content& c, MetricsSource metrics, CounterSource dropped)
-    : content (c), getMetrics (std::move (metrics)), getDropped (std::move (dropped))
+MetricsOverlay::MetricsOverlay (const Content& c, MetricsSource metrics, CounterSource dropped, ExtraRows extraRows)
+    : content (c), getMetrics (std::move (metrics)), getDropped (std::move (dropped)), getExtraRows (std::move (extraRows))
 {
     setInterceptsMouseClicks (false, false);
     startTimerHz (15);
@@ -45,7 +45,7 @@ void MetricsOverlay::paint (juce::Graphics& g)
 
     const char* stateKey = m.state == State::silence ? "silence" : m.state == State::listening ? "listening" : "evaluating";
 
-    const std::pair<juce::String, juce::String> rows[] = {
+    std::vector<std::pair<juce::String, juce::String>> rows {
         { label ("state"),           content.getString (juce::String ("debug.states.") + stateKey) },
         { label ("activeSeconds"),   number (m.activeSeconds, 1, "seconds") },
         { label ("dynamicRange"),    number (m.dynamicRangeDb, 1, "db") },
@@ -69,6 +69,9 @@ void MetricsOverlay::paint (juce::Graphics& g)
         { label ("maxPeak"),         number (m.maxOutPeakDb, 1, "db") },
         { label ("dropped"),         juce::String (getDropped ? getDropped() : 0u) },
     };
+    if (getExtraRows)
+        for (auto& row : getExtraRows())
+            rows.push_back (std::move (row));
 
     auto area = getLocalBounds().toFloat();
     g.setColour (panel);
@@ -82,7 +85,7 @@ void MetricsOverlay::paint (juce::Graphics& g)
     g.drawText (content.getString ("debug.title"), inner.removeFromTop (22), juce::Justification::centredLeft);
     inner.removeFromTop (6);
 
-    const int rowH = juce::jmin (24, inner.getHeight() / (int) std::size (rows));
+    const int rowH = juce::jmin (24, inner.getHeight() / (int) rows.size());
     g.setFont (juce::FontOptions (13.0f));
     for (const auto& [name, value] : rows)
     {

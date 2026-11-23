@@ -1,7 +1,7 @@
 # NA Encyclopedia Vol. I: Gain Staging (docs/GAIN-STAGING.md)
 
 # Bump on every build handed to Logic for testing (Logic caches per version).
-set(NA_GAINSTAGING_VERSION 1.0.2)
+set(NA_GAINSTAGING_VERSION 1.0.3)
 
 if(APPLE)
     set(NA_GAINSTAGING_FORMATS AU VST3)

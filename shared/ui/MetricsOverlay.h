@@ -5,6 +5,8 @@
 #include "content/Content.h"
 
 #include <functional>
+#include <utility>
+#include <vector>
 
 namespace na
 {
@@ -17,8 +19,10 @@ class MetricsOverlay final : public juce::Component,
 public:
     using MetricsSource = std::function<const analysis::Metrics& ()>;
     using CounterSource = std::function<unsigned()>;
+    /** A volume's own rows (label, value), already formatted. */
+    using ExtraRows = std::function<std::vector<std::pair<juce::String, juce::String>>()>;
 
-    MetricsOverlay (const Content& content, MetricsSource metrics, CounterSource droppedBlocks);
+    MetricsOverlay (const Content& content, MetricsSource metrics, CounterSource droppedBlocks, ExtraRows extraRows = {});
     ~MetricsOverlay() override;
 
     void paint (juce::Graphics&) override;
@@ -32,6 +36,7 @@ private:
     const Content& content;
     MetricsSource getMetrics;
     CounterSource getDropped;
+    ExtraRows getExtraRows;
 };
 
 } // namespace na

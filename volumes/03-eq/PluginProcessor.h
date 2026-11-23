@@ -5,12 +5,23 @@
 
 /** Vol. III, EQ (docs/EQ.md): a 5-band parametric EQ on the shared book.
 
-    Build status: step 1. EQ, parameters, chapter knobs, start values and the
-    spectrum view (EQ curve) work; the analysis and feedback come next. */
+    Build status: step 2. EQ, parameters, chapter knobs, start values, the
+    spectrum view and the measurements (build-up, rumble) work; the chapter
+    feedback comes next. */
 class EqProcessor final : public na::book::BookProcessor
 {
 public:
     EqProcessor();
+
+    /** The measurements for the chosen instrument (docs/EQ.md §4), NaN until there's a reading. */
+    struct Reading
+    {
+        float mudIn, mudOut;          // build-up in the instrument's mud range, dB
+        float harshIn, harshOut;      // build-up in its harsh range, dB
+        float rumbleIn, rumbleOut;    // energy below its low-cut range vs the whole track, dB
+    };
+    Reading reading() const;
+    std::vector<std::pair<juce::String, juce::String>> debugRows() const override;
 
     na::vol3::EqSettings getSettings() const noexcept { return readSettings(); }
 

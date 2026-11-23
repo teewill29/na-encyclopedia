@@ -43,6 +43,7 @@ target_sources(NAEncyclopediaCore INTERFACE
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/Session.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/chapters/FeedbackTracker.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/Metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/shared/analysis/SpectrumAnalyser.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/MetricsOverlay.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/Style.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared/ui/BookFrame.cpp
@@ -92,6 +93,15 @@ add_executable(NAEncyclopediaAnalysisTests
 target_include_directories(NAEncyclopediaAnalysisTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
 target_compile_features(NAEncyclopediaAnalysisTests PRIVATE cxx_std_20)
 add_test(NAME AnalysisTests COMMAND NAEncyclopediaAnalysisTests)
+
+# Unit tests for the spectrum analysis (plain C++, docs/EQ.md §4)
+add_executable(NAEncyclopediaSpectrumTests
+    shared/tests/SpectrumTests.cpp
+    shared/analysis/SpectrumAnalyser.cpp
+)
+target_include_directories(NAEncyclopediaSpectrumTests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/shared)
+target_compile_features(NAEncyclopediaSpectrumTests PRIVATE cxx_std_20)
+add_test(NAME SpectrumTests COMMAND NAEncyclopediaSpectrumTests)
 
 # Unit tests for the feedback state machine (plain C++)
 add_executable(NAEncyclopediaFeedbackTests

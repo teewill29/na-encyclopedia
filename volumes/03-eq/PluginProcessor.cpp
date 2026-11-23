@@ -86,6 +86,7 @@ EqProcessor::EqProcessor()
     band1Shape = parameters.getRawParameterValue ("band1Shape");
     band5Shape = parameters.getRawParameterValue ("band5Shape");
     output     = parameters.getRawParameterValue ("output");
+    enableSpectrum();
 }
 
 // ── DSP ──────────────────────────────────────────────────────────────────────
@@ -208,13 +209,23 @@ bool EqProcessor::spectrumFor (const juce::String& chapterId, na::book::Spectrum
 {
     if (chapterId == "level" || chapterId.isEmpty()) return false;
 
-    // 1/6-octave points from 20 Hz to 20 kHz; the EQ curve now, the measured spectrum in step 2.
+    // The analyser's 1/6-octave bands from 20 Hz to 20 kHz: the measured track
+    // before and after the EQ, and the EQ curve at the same points.
+    using Analyser = na::analysis::SpectrumAnalyser;
     const auto settings = readSettings();
-    out.freqs.clear(); out.curveDb.clear();
-    for (float f = 20.0f; f <= 20000.0f; f *= std::pow (2.0f, 1.0f / 6.0f))
+    const bool measured = spectrum.hasReading();
+    out.freqs.clear(); out.curveDb.clear(); out.inDb.clear(); out.outDb.clear();
+    for (int b = 0; b < Analyser::numBands; ++b)
     {
+        const float f = Analyser::bandCentreHz (b);
+        if (f < 19.9f || f > 20000.0f) continue;
         out.freqs.push_back (f);
         out.curveDb.push_back (Equalizer::responseDb (settings, f, currentSampleRate) - settings.outputDb);
+        if (measured)
+        {
+            out.inDb.push_back (spectrum.levelsDb (Analyser::Stream::in)[(size_t) b]);
+            out.outDb.push_back (spectrum.levelsDb (Analyser::Stream::out)[(size_t) b]);
+        }
     }
 
     const auto instrument = session.getInstrument();
@@ -232,6 +243,57 @@ juce::StringArray EqProcessor::setSoFarParamsFor (const juce::String& chapterId)
     const int band = bandFor (chapterId);
     if (band >= 2) return { id ("Freq", band), id ("Gain", band) };
     return BookProcessor::setSoFarParamsFor (chapterId);
+}
+
+// ── Measurements ─────────────────────────────────────────────────────────────
+EqProcessor::Reading EqProcessor::reading() const
+{
+    using Stream = na::analysis::SpectrumAnalyser::Stream;
+    const auto instrument = session.getInstrument();
+    const auto mud = instrument["mudHz"], harsh = instrument["harshHz"];
+    const float lowCutMin = num (instrument["lowCutHz"]["min"]);
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    if (! instrument.isObject()) return { nan, nan, nan, nan, nan, nan };
+
+    return { spectrum.buildUpDb (Stream::in,  num (mud["min"]),   num (mud["max"])),
+             spectrum.buildUpDb (Stream::out, num (mud["min"]),   num (mud["max"])),
+             spectrum.buildUpDb (Stream::in,  num (harsh["min"]), num (harsh["max"])),
+             spectrum.buildUpDb (Stream::out, num (harsh["min"]), num (harsh["max"])),
+             spectrum.rumbleDb (Stream::in,  lowCutMin),
+             spectrum.rumbleDb (Stream::out, lowCutMin) };
+}
+
+std::vector<std::pair<juce::String, juce::String>> EqProcessor::debugRows() const
+{
+    const auto instrument = session.getInstrument();
+    auto hzText = [this] (const juce::var& v)
+    {
+        const float f = num (v);
+        return std::isnan (f) ? content.getString ("debug.none")
+             : f >= 1000.0f   ? na::Template::formatNumber (f / 1000.0) + content.getString ("book.units.khz")
+                              : na::Template::formatNumber (f) + content.getString ("book.units.hz");
+    };
+    auto label = [&] (const char* key, const juce::var& range)
+    {
+        return na::Template::fill (content.getString (juce::String ("debug.labels.") + key, key),
+                                   na::Template::forValues ({ { "min", hzText (range["min"]) }, { "max", hzText (range["max"]) } }));
+    };
+    auto db = [this] (float v)
+    {
+        return std::isnan (v) ? content.getString ("debug.none")
+                              : (v > 0.0f ? "+" : "") + juce::String (v, 1) + content.getString ("debug.units.db");
+    };
+
+    const auto r = reading();
+    return {
+        { label ("spectrumSeconds", {}), juce::String (spectrum.getActiveSeconds(), 1) + content.getString ("debug.units.seconds") },
+        { label ("mudIn", instrument["mudHz"]),       db (r.mudIn) },
+        { label ("mudOut", instrument["mudHz"]),      db (r.mudOut) },
+        { label ("harshIn", instrument["harshHz"]),   db (r.harshIn) },
+        { label ("harshOut", instrument["harshHz"]),  db (r.harshOut) },
+        { label ("rumbleIn", instrument["lowCutHz"]),  db (r.rumbleIn) },
+        { label ("rumbleOut", instrument["lowCutHz"]), db (r.rumbleOut) },
+    };
 }
 
 // Feedback rules arrive in step 3 (docs/EQ.md §7).

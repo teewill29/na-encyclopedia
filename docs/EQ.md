@@ -54,6 +54,14 @@ Chapters III and IV have a **"Hear the band"** button: a temporary narrow boost 
 - **Rumble**: energy below the instrument's low-cut range, relative to the whole track.
 - **Level match**: the existing short-term loudness in vs out (Vol. IV §2.7).
 
+*Built (step 2)* in `shared/analysis/SpectrumAnalyser` (plain C++, its own radix-2 FFT, tests in `shared/tests/SpectrumTests.cpp`):
+- Bands every 1/6 octave from 10 Hz to 20.5 kHz (the display uses 20 Hz–20 kHz; the bands below 20 Hz count towards rumble). Each band takes its share of every FFT bin it overlaps, so the narrow low bands still read sensibly.
+- Level = the signal's mean-square power in the band, in dB: a full-scale sine reads −3 dB in its band, pink noise reads flat.
+- Frames whose `in` level is under −50 dBFS are skipped, so the reading holds when playback stops. A reading needs 1 s of active audio; the average is the last 3 s.
+- Build-up = mean over the range's bands of (level − the straight line between the mean level of the octave below and of the octave above). Pink and white noise read 0 ± 0.75 dB; a +6 dB, Q 1.4 bell at 300 Hz reads about +3 to +5 dB in a 200–500 Hz range.
+- Rumble = power below the instrument's `lowCutHz.min` ÷ the whole track's power, in dB.
+- The book runs it only for volumes that ask (`enableSpectrum()`), on the analysis timer, never the audio thread. The debug overlay shows the readings for the chosen instrument.
+
 ## 5. Feedback rules (draft)
 
 - **I. Listen First**: build-up in the instrument's mud range ≥ `mudNeedDb` or harsh range ≥ `harshNeedDb` → `needed` (which one is named in the message); otherwise `notNeeded` ("already fairly balanced; you can still continue"). Any verdict ticks the chapter.
@@ -80,7 +88,14 @@ Same state machine, timing and ticks as the other volumes.
 3. **Chapters + feedback**: Vol. III's rules, "Hear the band", Compare / Hear what's removed in Chapter VI.
 4. **Demo pass**: all three volumes in one chain (I → III → IV).
 
-## 8. Questions for the owner / engineer review
+## 8. Tuning on real recordings
+
+`NAEncyclopediaSpectrumReport <file.wav> [instrumentId]` (built with the tests, not shipped) runs the analysis over a recording and prints the spectrum plus, for every instrument in the content file, the median and 90th-percentile build-up in its mud and harsh ranges and its rumble, next to `mudNeedDb` / `harshNeedDb`.
+
+- **Test vocal (Ride 'Em Cowboy `raw vox.wav`): not yet run.** That file lives in another repository this session couldn't open. Step 3's thresholds should be checked against it (or any raw vocal, and a drum stem) before the feedback is final.
+- Seen on a sustained single-note instrument (JUCE's cello sample, looped): build-up swings by several dB depending on whether a strong harmonic lands inside the range (+5 to +8 dB in 200–500 Hz, −2.5 dB in 400–800 Hz). Real parts with many notes average this out over 3 s, but a held note can read as "muddy". Something to watch when tuning `mudNeedDb`.
+
+## 9. Questions for the owner / engineer review
 
 1. **Goals**: two per instrument for Chapter V (e.g. Lead Vocal: "Clear & Present", "Warm & Smooth"; Mix Bus has one). See the content file. Right number, right names?
 2. **Numbers**: low-cut ranges, mud and harsh ranges, cut depths and boost ranges per instrument are common starting points. Engineer to confirm.
